@@ -104,6 +104,11 @@ fn find_tool(name: &str) -> Option<PathBuf> {
     None
 }
 
+fn cohere_python() -> Option<PathBuf> {
+    let p = local_app().join("cohere-venv").join("Scripts").join("python.exe");
+    if p.is_file() { Some(p) } else { None }
+}
+
 fn find_whisper_cli() -> Option<PathBuf> {
     for d in [tools_dir().join("whisper"), exe_dir().join("whisper")] {
         for n in ["whisper-cli.exe", "main.exe"] {
@@ -272,7 +277,21 @@ async fn env_check() -> Result<String, String> {
             if s.contains("imageio_ffmpeg") { "found with moviepy" } else if s.starts_with(&tools_dir().display().to_string()) { "installed by this app" } else { "system" }
         });
         let wc = find_whisper_cli();
+        let hub = hf_hub();
+        let mut cm: Vec<&str> = vec![];
+        if hub.join("models--CohereLabs--cohere-transcribe-03-2026").is_dir() { cm.push("general"); }
+        if hub.join("models--CohereLabs--cohere-transcribe-arabic-07-2026").is_dir() { cm.push("arabic"); }
+        let mut cver = String::new();
+        if let Some(p) = cohere_python() {
+            let mut c = Command::new(p);
+            nowin(&mut c);
+            if let Ok(o) = c.args(["-c", "import transformers;print(transformers.__version__)"]).output() {
+                if o.status.success() { cver = String::from_utf8_lossy(&o.stdout).trim().to_string(); }
+            }
+        }
+        let ok_rt = { let mut it = cver.split('.').filter_map(|x| x.parse::<u32>().ok()); match (it.next(), it.next()) { (Some(a), Some(b)) => a > 5 || (a == 5 && b >= 4), _ => false } };
         Ok(json!({
+            "cohere": { "runtime": ok_rt, "version": cver, "models": cm, "token": ovr("hf_token").is_some() },
             "python": { "ok": py.is_some(), "version": pyver },
             "pkgs": pkgs,
             "yt_dlp": { "ok": yt.is_some() || pkgs["yt_dlp"] == true, "path": yt.map(|p| p.display().to_string()), "module": pkgs["yt_dlp"] == true },
@@ -331,6 +350,29 @@ async fn install_tool(app: AppHandle, name: String) -> Result<String, String> {
                 c.args(["install", "-e", "--id", "Python.Python.3.12", "--accept-package-agreements", "--accept-source-agreements"]);
                 if !run_stream(&app, "setup-log", c)?.success() { return Err("winget could not install Python".into()); }
                 log("Python installed — restart the app so it is picked up.");
+            }
+            "cohere" => {
+                let venv = local_app().join("cohere-venv");
+                let mut c = pycmd().ok_or("Python not found")?;
+                c.args(["-m", "venv", "--system-site-packages"]).arg(&venv);
+                if !run_stream(&app, "setup-log", c)?.success() { return Err("could not create the Cohere Python environment".into()); }
+                let vp = venv.join("Scripts").join("python.exe");
+                let mut pk: Vec<&str> = vec!["transformers>=5.4.0", "accelerate", "soundfile", "librosa", "sentencepiece", "protobuf", "huggingface_hub"];
+                if !py_has("torch") { pk.push("torch"); }
+                let mut c = Command::new(&vp);
+                nowin(&mut c);
+                c.args(["-m", "pip", "install", "--upgrade", "--progress-bar", "off"]).args(&pk);
+                if !run_stream(&app, "setup-log", c)?.success() { return Err("pip install for the Cohere runtime failed".into()); }
+            }
+            n if n.starts_with("cohere_model:") => {
+                let id = &n[13..];
+                if id != "CohereLabs/cohere-transcribe-03-2026" && id != "CohereLabs/cohere-transcribe-arabic-07-2026" { return Err("unknown model".into()); }
+                let vp = cohere_python().ok_or("Install the Cohere runtime first")?;
+                let tok = ovr("hf_token").ok_or("Add your Hugging Face token first (the Cohere models are gated)")?;
+                let mut c = Command::new(vp);
+                nowin(&mut c);
+                c.args(["-c", &format!("from huggingface_hub import snapshot_download; print(snapshot_download('{id}'))")]).env("HF_TOKEN", tok);
+                if !run_stream(&app, "setup-log", c)?.success() { return Err("model download failed — accept the model's terms on huggingface.co and check your token".into()); }
             }
             n if n.starts_with("fwmodel:") => {
                 let m = &n[8..];
@@ -440,6 +482,29 @@ async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, tr
             .output().map_err(|e| format!("ffmpeg: {e}"))?;
         if !o.status.success() {
             return Err(format!("ffmpeg failed: {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("")));
+        }
+        if engine == "cohere" {
+            let mid = match lang.as_str() {
+                "ar" => "CohereLabs/cohere-transcribe-arabic-07-2026",
+                "en" => "CohereLabs/cohere-transcribe-03-2026",
+                _ => return Err("Cohere Transcribe supports English and Arabic only (it has no Urdu). Pick a Whisper engine for this language.".into()),
+            };
+            let vpy = cohere_python().ok_or("Cohere runtime is not installed - open Setup and install it")?;
+            let tok = ovr("hf_token").ok_or("Add your Hugging Face token in Setup (the Cohere models are gated)")?;
+            let script = tmp.join("ics_cohere.py");
+            let argf = tmp.join("ics_cohere_args.json");
+            let outj = tmp.join("ics_cohere.json");
+            let _ = std::fs::remove_file(&outj);
+            std::fs::write(&script, include_str!("../cohere_run.py")).map_err(|e| e.to_string())?;
+            std::fs::write(&argf, json!({"audio": wav.display().to_string(), "out": outj.display().to_string(), "model_id": mid, "lang": lang}).to_string()).map_err(|e| e.to_string())?;
+            let mut c = Command::new(vpy);
+            nowin(&mut c);
+            c.arg(&script).arg(&argf).env("HF_TOKEN", tok).env("PYTHONIOENCODING", "utf-8").env("PYTHONUTF8", "1").env("HF_HUB_DISABLE_SYMLINKS_WARNING", "1");
+            let st = run_stream(&app, "whisper-log", c)?;
+            let _ = std::fs::remove_file(&wav);
+            if !st.success() { return Err(format!("Cohere Transcribe failed ({st}) - see the log; check your token and that you accepted the model terms")); }
+            let segs: Value = serde_json::from_str(&std::fs::read_to_string(&outj).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            return Ok(json!({ "segments": segs, "engine": "cohere" }).to_string());
         }
         let use_faster = match engine.as_str() { "faster" => true, "cpp" => false, _ => model != "large-v3-turbo-q5_0" && py_has("faster_whisper") };
         if use_faster {

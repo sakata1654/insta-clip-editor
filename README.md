@@ -18,3 +18,13 @@ Custom locations can be set in the Setup tab.
 
 Exports are saved to `Documents\Insta Clip Studio\Projects\Project_<date>`.
 To update: re-upload changed files to the repo (same names overwrite) and run the workflow again.
+
+## Models by language
+- **Urdu**: Whisper large-v3 (faster-whisper). Cohere Transcribe has no Urdu.
+- **Arabic**: Cohere Transcribe Arabic (July 2026) if set up, else Whisper.
+- **English**: Cohere Transcribe if set up, else Whisper.
+Cohere models are gated: add a free Hugging Face token in Setup and accept the terms on both model pages.
+Cohere models give no timestamps, so subtitle timing comes from voice-activity detection.
+
+## Translate tab
+Gemini (or OpenAI / Claude / Groq / OpenRouter / Ollama). Lines are sent with their on-screen duration; results are cached.
