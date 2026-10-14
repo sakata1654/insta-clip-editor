@@ -21,6 +21,20 @@ fn set_overrides(map: HashMap<String, String>) {
     if let Ok(mut g) = OVR.get_or_init(|| Mutex::new(HashMap::new())).lock() { *g = map; }
 }
 
+// All AI / web calls go through Rust: no streaming layer, so an empty or odd body can never crash the page.
+#[tauri::command]
+async fn http_request(url: String, method: String, headers: HashMap<String, String>, body: String) -> Result<Value, String> {
+    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(180)).build().map_err(|e| e.to_string())?;
+    let m = reqwest::Method::from_bytes(method.to_uppercase().as_bytes()).map_err(|e| e.to_string())?;
+    let mut rb = client.request(m, &url);
+    for (k, v) in headers { rb = rb.header(k, v); }
+    if !body.is_empty() { rb = rb.body(body); }
+    let r = rb.send().await.map_err(|e| format!("network error: {e}"))?;
+    let status = r.status().as_u16();
+    let text = r.text().await.map_err(|e| format!("could not read the answer: {e}"))?;
+    Ok(json!({ "status": status, "body": text }))
+}
+
 fn local_app() -> PathBuf {
     std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir).join("InstaClipStudio")
 }
@@ -547,7 +561,7 @@ async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, tr
 
 // ---------------------------------------------------------------- final render: audio chain + MP4 encode
 #[tauri::command]
-async fn finalize_export(app: AppHandle, video: String, source: String, start: f64, dur: f64, speed: f64, enhance: bool, pre: String, vocals: bool, demucs: String, crf: u32, out: String) -> Result<String, String> {
+async fn finalize_export(app: AppHandle, video: String, source: String, start: f64, dur: f64, speed: f64, enhance: bool, pre: String, vocals: bool, demucs: String, crf: u32, out: String, aclips: String, vol: f64) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let log = |m: &str| { let _ = app.emit("export-log", m.to_string()); };
         let work = PathBuf::from(&out).parent().map(|p| p.to_path_buf()).unwrap_or_else(std::env::temp_dir);
@@ -583,11 +597,34 @@ async fn finalize_export(app: AppHandle, video: String, source: String, start: f
             chain.push("acompressor=threshold=0.125:ratio=3:attack=10:release=150:makeup=2,loudnorm=I=-16:TP=-1.5:LRA=11".into());
         }
         let af = chain.join(",");
+        let clips: Vec<Value> = serde_json::from_str(&aclips).unwrap_or_default();
         let mut c = ffmpeg()?;
         c.arg("-y");
         if !trimmed { c.args(["-ss", &start.to_string(), "-t", &dur.to_string()]); }
-        c.arg("-i").arg(&src).args(["-vn", "-ac", "2", "-ar", "44100"]);
-        if !af.is_empty() { c.args(["-af", &af]); }
+        c.arg("-i").arg(&src);
+        if clips.is_empty() {
+            c.args(["-vn", "-ac", "2", "-ar", "44100"]);
+            if !af.is_empty() { c.args(["-af", &af]); }
+        } else {
+            // main audio + every extra audio / video clip, mixed on the timeline (two or more play together)
+            let mut g = format!("[0:a]volume={vol}[a0];");
+            let mut labels = String::from("[a0]");
+            for (i, cl) in clips.iter().enumerate() {
+                let k = i + 1;
+                c.arg("-i").arg(cl["path"].as_str().unwrap_or(""));
+                let off = cl["off"].as_f64().unwrap_or(0.0);
+                let len = cl["len"].as_f64().unwrap_or(1.0);
+                let delay = (cl["delay"].as_f64().unwrap_or(0.0) * 1000.0).round() as i64;
+                let v = cl["vol"].as_f64().unwrap_or(1.0);
+                let lp = if cl["loop"].as_bool().unwrap_or(false) { "aloop=loop=-1:size=2147483647," } else { "" };
+                g.push_str(&format!("[{k}:a]{lp}atrim=start={off}:end={},asetpts=PTS-STARTPTS,volume={v},adelay={delay}|{delay}[a{k}];", off + len));
+                labels.push_str(&format!("[a{k}]"));
+            }
+            let n = clips.len() + 1;
+            let tail = if af.is_empty() { "anull".to_string() } else { af.clone() };
+            g.push_str(&format!("{labels}amix=inputs={n}:duration=longest:dropout_transition=0,volume={n},{tail}[aout]"));
+            c.args(["-filter_complex", &g, "-map", "[aout]", "-ac", "2", "-ar", "44100"]);
+        }
         let o = c.arg(&wav).output().map_err(|e| format!("ffmpeg: {e}"))?;
         if !o.status.success() { return Err(format!("audio step failed: {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or(""))); }
         for (enc, extra) in [("h264_nvenc", vec!["-preset", "p4", "-tune", "hq", "-rc", "vbr", "-cq", "19", "-b:v", "8500k"]), ("libx264", vec!["-preset", "medium"])] {
@@ -609,9 +646,8 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
-            set_overrides, env_check, install_tool, read_file, write_file, reveal,
+            set_overrides, env_check, http_request, install_tool, read_file, write_file, reveal,
             ytdlp_version, ytdlp_update, ytdlp_download, transcribe, finalize_export
         ])
         .run(tauri::generate_context!())

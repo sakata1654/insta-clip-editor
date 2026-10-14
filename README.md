@@ -28,3 +28,9 @@ Cohere models give no timestamps, so subtitle timing comes from voice-activity d
 
 ## Translate tab
 Gemini (or OpenAI / Claude / Groq / OpenRouter / Ollama). Lines are sent with their on-screen duration; results are cached.
+
+## Editor tips
+- **Timeline** (bottom): drag clips to move / resize, drag vertically to change lane, Ctrl+wheel to zoom. Keys: S split, M merge, D duplicate, Del delete.
+- **Assets** tab: add images, videos, audio. Put two audio clips on different lanes to play them together. "Until the end" loops a clip or holds a picture.
+- **Words** tab (or click a word on the preview): color / size for one word or every occurrence in the video.
+- Extra audio clips are mixed by FFmpeg in the desktop export.
