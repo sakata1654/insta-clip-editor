@@ -1,7 +1,7 @@
 # Cohere Transcribe (English / Arabic) with VAD-based timing.
 # Cohere's models give no timestamps, so speech is first cut with a voice-activity detector
 # (this also stops the "eager to transcribe silence" hallucinations the model card warns about).
-import sys, json, os
+import sys, json, os, traceback
 import numpy as np
 
 def vad_segments(audio, sr):
@@ -25,25 +25,48 @@ def vad_segments(audio, sr):
     return out
 
 def main():
+    print("Reading extracted audio…", flush=True)
     a = json.load(open(sys.argv[1], encoding='utf-8'))
     import soundfile as sf
     audio, sr = sf.read(a['audio'], dtype='float32')
     if audio.ndim > 1:
         audio = audio.mean(axis=1)
     segs = vad_segments(audio, sr)
-    print(f"{len(segs)} speech segments", flush=True)
+    print(f"Audio duration: {len(audio) / sr:.1f}s; {len(segs)} speech segments", flush=True)
     import torch
     from transformers import AutoProcessor, CohereAsrForConditionalGeneration
     mid = a['model_id']
     tok = os.environ.get('HF_TOKEN') or None
+
+    # Select a GPU-compatible dtype and conservative batch size. A 2B model plus
+    # activations can exceed the 4 GB VRAM available on many laptop GPUs.
+    if torch.cuda.is_available():
+        try:
+            vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+        except Exception:
+            vram_gb = 0.0
+        try:
+            bf16_ok = bool(torch.cuda.is_bf16_supported())
+        except Exception:
+            bf16_ok = False
+        model_dtype = torch.bfloat16 if bf16_ok else torch.float16
+        batch_size = 1 if vram_gb < 8.0 else 4
+        print(f"CUDA available; VRAM {vram_gb:.1f} GB; dtype {model_dtype}; batch {batch_size}", flush=True)
+    else:
+        model_dtype = torch.float32
+        batch_size = 1
+        print("CUDA unavailable; using CPU float32 (this may be slow and needs substantial RAM)", flush=True)
+
+    print(f"Loading model {mid}…", flush=True)
     processor = AutoProcessor.from_pretrained(mid, token=tok)
     try:
-        model = CohereAsrForConditionalGeneration.from_pretrained(mid, device_map="auto", token=tok, dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32)
+        model = CohereAsrForConditionalGeneration.from_pretrained(mid, device_map="auto", token=tok, dtype=model_dtype)
     except TypeError:
+        # Compatibility fallback for Transformers builds that do not accept `dtype`.
         model = CohereAsrForConditionalGeneration.from_pretrained(mid, device_map="auto", token=tok)
     print(f"MODEL {mid.split('/')[-1]} on {model.device}", flush=True)
     lang = a['lang']
-    out, B = [], 8
+    out, B = [], batch_size
     for i in range(0, len(segs), B):
         part = segs[i:i + B]
         chunk = [audio[int(s * sr):int(e * sr)] for s, e in part]
@@ -56,7 +79,12 @@ def main():
             dec = processor.decode(res, skip_special_tokens=True, audio_chunk_index=aci, language=lang)
             texts = [dec] if isinstance(dec, str) else list(dec)
         except Exception as e:
-            print(f"batch failed ({e}); retrying one by one", flush=True)
+            print(f"batch failed ({type(e).__name__}: {e}); retrying one by one", flush=True)
+            if torch.cuda.is_available():
+                try:
+                    torch.cuda.empty_cache()
+                except Exception:
+                    pass
         if len(texts) != len(chunk):
             texts = []
             for c in chunk:
@@ -72,4 +100,11 @@ def main():
     json.dump(out, open(a['out'], 'w', encoding='utf-8'), ensure_ascii=False)
     print("DONE", flush=True)
 
-main()
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print(f"COHERE_ERROR: {type(exc).__name__}: {exc}", flush=True)
+        traceback.print_exc(file=sys.stdout)
+        sys.stdout.flush()
+        sys.exit(1)

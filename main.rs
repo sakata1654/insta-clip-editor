@@ -1,10 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use serde_json::{json, Value};
-use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
+use std::collections::{HashMap, VecDeque};
+use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::{Mutex, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use tauri::ipc::{InvokeBody, Request, Response};
 use tauri::{AppHandle, Emitter};
 
@@ -19,20 +19,6 @@ fn ovr(k: &str) -> Option<String> {
 #[tauri::command]
 fn set_overrides(map: HashMap<String, String>) {
     if let Ok(mut g) = OVR.get_or_init(|| Mutex::new(HashMap::new())).lock() { *g = map; }
-}
-
-// All AI / web calls go through Rust: no streaming layer, so an empty or odd body can never crash the page.
-#[tauri::command]
-async fn http_request(url: String, method: String, headers: HashMap<String, String>, body: String) -> Result<Value, String> {
-    let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(180)).build().map_err(|e| e.to_string())?;
-    let m = reqwest::Method::from_bytes(method.to_uppercase().as_bytes()).map_err(|e| e.to_string())?;
-    let mut rb = client.request(m, &url);
-    for (k, v) in headers { rb = rb.header(k, v); }
-    if !body.is_empty() { rb = rb.body(body); }
-    let r = rb.send().await.map_err(|e| format!("network error: {e}"))?;
-    let status = r.status().as_u16();
-    let text = r.text().await.map_err(|e| format!("could not read the answer: {e}"))?;
-    Ok(json!({ "status": status, "body": text }))
 }
 
 fn local_app() -> PathBuf {
@@ -192,6 +178,83 @@ fn run_stream(app: &AppHandle, ev: &str, mut c: Command) -> Result<ExitStatus, S
     for l in BufReader::new(ch.stdout.take().unwrap()).lines().flatten() { let _ = app.emit(ev, l); }
     let _ = t.join();
     ch.wait().map_err(|e| e.to_string())
+}
+
+// Cohere diagnostics: retain a bounded tail of stdout/stderr so a failed run explains
+// whether the cause was gated model access, a missing dependency, or a runtime/GPU error.
+fn remember_line(lines: &Arc<Mutex<VecDeque<String>>>, line: String) {
+    if let Ok(mut items) = lines.lock() {
+        if items.len() >= 60 { items.pop_front(); }
+        items.push_back(line);
+    }
+}
+
+fn run_stream_capture(app: &AppHandle, ev: &str, mut c: Command) -> Result<(ExitStatus, Vec<String>), String> {
+    let mut ch = c.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
+    let recent = Arc::new(Mutex::new(VecDeque::<String>::new()));
+    let stderr = ch.stderr.take().ok_or("Cohere stderr stream unavailable")?;
+    let stdout = ch.stdout.take().ok_or("Cohere stdout stream unavailable")?;
+
+    let err_app = app.clone();
+    let err_event = ev.to_string();
+    let err_recent = Arc::clone(&recent);
+    let err_thread = std::thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().flatten() {
+            let _ = err_app.emit(&err_event, line.clone());
+            remember_line(&err_recent, line);
+        }
+    });
+    for line in BufReader::new(stdout).lines().flatten() {
+        let _ = app.emit(ev, line.clone());
+        remember_line(&recent, line);
+    }
+    let _ = err_thread.join();
+    let status = ch.wait().map_err(|e| e.to_string())?;
+    let output = recent.lock().map(|v| v.iter().cloned().collect()).unwrap_or_default();
+    Ok((status, output))
+}
+
+// Run a video encode without buffering the entire FFmpeg output until exit.
+// FFmpeg's progress channel keeps the UI responsive and exposes real progress.
+fn run_encode_progress(app: &AppHandle, mut c: Command, total_seconds: f64, encoder: &str) -> Result<(ExitStatus, String), String> {
+    let mut ch = c.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| e.to_string())?;
+    let out = ch.stdout.take().ok_or("FFmpeg stdout unavailable")?;
+    let err = ch.stderr.take().ok_or("FFmpeg stderr unavailable")?;
+    let a2 = app.clone();
+    let enc = encoder.to_string();
+    let err_thread = std::thread::spawn(move || {
+        let mut last = String::new();
+        for line in BufReader::new(err).lines().flatten() {
+            let line = line.trim().to_string();
+            if line.is_empty() { continue; }
+            let lower = line.to_lowercase();
+            if lower.contains("error") || lower.contains("failed") || lower.contains("cannot") || lower.contains("no capable devices") {
+                let _ = a2.emit("export-log", format!("FFmpeg {enc}: {line}"));
+            }
+            last = line;
+        }
+        last
+    });
+    let mut last_percent = u32::MAX;
+    for line in BufReader::new(out).lines().flatten() {
+        // FFmpeg reports out_time_ms in microseconds despite the legacy field name.
+        if let Some(value) = line.strip_prefix("out_time_ms=") {
+            if let Ok(us) = value.parse::<f64>() {
+                if total_seconds.is_finite() && total_seconds > 0.0 {
+                    let pct = ((us / 1_000_000.0 / total_seconds) * 100.0).round().clamp(0.0, 99.0) as u32;
+                    if pct != last_percent {
+                        last_percent = pct;
+                        let _ = app.emit("export-log", format!("Encoding video ({encoder})… {pct}%"));
+                    }
+                }
+            }
+        } else if line == "progress=end" {
+            let _ = app.emit("export-log", format!("Encoding video ({encoder})… 100%"));
+        }
+    }
+    let status = ch.wait().map_err(|e| e.to_string())?;
+    let last_error = err_thread.join().unwrap_or_else(|_| "FFmpeg error output unavailable".to_string());
+    Ok((status, last_error))
 }
 
 fn dec(s: &str) -> String {
@@ -416,6 +479,18 @@ fn write_file(request: Request<'_>) -> Result<(), String> {
     std::fs::write(&p, data).map_err(|e| format!("{p}: {e}"))
 }
 
+// MediaRecorder output can be hundreds of megabytes. Append each small chunk
+// as it arrives instead of sending the entire finished video through IPC.
+#[tauri::command]
+fn append_file(request: Request<'_>) -> Result<(), String> {
+    let InvokeBody::Raw(data) = request.body() else { return Err("no data".into()) };
+    let p = request.headers().get("path").and_then(|h| h.to_str().ok()).map(dec).ok_or("no path header")?;
+    if let Some(d) = Path::new(&p).parent() { std::fs::create_dir_all(d).map_err(|e| format!("{p}: {e}"))?; }
+    let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&p)
+        .map_err(|e| format!("{p}: {e}"))?;
+    f.write_all(data).map_err(|e| format!("{p}: {e}"))
+}
+
 #[tauri::command]
 fn reveal(path: String) -> Result<(), String> {
     #[cfg(windows)]
@@ -514,9 +589,25 @@ async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, tr
             let mut c = Command::new(vpy);
             nowin(&mut c);
             c.arg(&script).arg(&argf).env("HF_TOKEN", tok).env("PYTHONIOENCODING", "utf-8").env("PYTHONUTF8", "1").env("HF_HUB_DISABLE_SYMLINKS_WARNING", "1");
-            let st = run_stream(&app, "whisper-log", c)?;
+            let (st, lines) = run_stream_capture(&app, "whisper-log", c)?;
             let _ = std::fs::remove_file(&wav);
-            if !st.success() { return Err(format!("Cohere Transcribe failed ({st}) - see the log; check your token and that you accepted the model terms")); }
+            if !st.success() {
+                let detail = lines.iter().rev().take(24).rev().map(|line| {
+                    let shortened = line.chars().take(900).collect::<String>();
+                    if line.chars().count() > 900 { format!("{shortened}… [line shortened]") } else { shortened }
+                }).collect::<Vec<_>>().join("\n");
+                let lower = detail.to_lowercase();
+                let likely_cause = if lower.contains("gated repo") || lower.contains("gated model") || lower.contains("401") || lower.contains("403") || lower.contains("access to model") {
+                    "Hugging Face denied model access. Open the exact model page while logged in, accept its conditions, and use a Read token from that same account."
+                } else if lower.contains("out of memory") || lower.contains("cuda error") || lower.contains("cuda out of memory") {
+                    "This looks like a GPU-memory/runtime failure. Close GPU-heavy apps and retry; the updated runner uses smaller batches on low-VRAM GPUs."
+                } else if lower.contains("no module named") || lower.contains("modulenotfounderror") || lower.contains("importerror") {
+                    "A Python package is missing or incompatible. Open Setup and reinstall the Cohere Transcribe runtime."
+                } else if lower.contains("connectionerror") || lower.contains("timeout") || lower.contains("could not connect") || lower.contains("network is unreachable") {
+                    "This looks like a network/download failure. Check the connection and retry after the model files finish downloading."
+                } else { "The diagnostic output below contains the underlying Python/Hugging Face error." };
+                return Err(format!("Cohere Transcribe failed ({st}).\n{likely_cause}\n\nDiagnostic output (latest lines):\n{}", if detail.trim().is_empty() { "No Python output was captured. Reinstall the Cohere runtime and retry." } else { &detail }));
+            }
             let segs: Value = serde_json::from_str(&std::fs::read_to_string(&outj).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             return Ok(json!({ "segments": segs, "engine": "cohere" }).to_string());
         }
@@ -561,7 +652,7 @@ async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, tr
 
 // ---------------------------------------------------------------- final render: audio chain + MP4 encode
 #[tauri::command]
-async fn finalize_export(app: AppHandle, video: String, source: String, start: f64, dur: f64, speed: f64, enhance: bool, pre: String, vocals: bool, demucs: String, crf: u32, out: String, aclips: String, vol: f64) -> Result<String, String> {
+async fn finalize_export(app: AppHandle, video: String, source: String, start: f64, dur: f64, speed: f64, enhance: bool, pre: String, vocals: bool, demucs: String, crf: u32, out: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let log = |m: &str| { let _ = app.emit("export-log", m.to_string()); };
         let work = PathBuf::from(&out).parent().map(|p| p.to_path_buf()).unwrap_or_else(std::env::temp_dir);
@@ -597,46 +688,24 @@ async fn finalize_export(app: AppHandle, video: String, source: String, start: f
             chain.push("acompressor=threshold=0.125:ratio=3:attack=10:release=150:makeup=2,loudnorm=I=-16:TP=-1.5:LRA=11".into());
         }
         let af = chain.join(",");
-        let clips: Vec<Value> = serde_json::from_str(&aclips).unwrap_or_default();
         let mut c = ffmpeg()?;
         c.arg("-y");
         if !trimmed { c.args(["-ss", &start.to_string(), "-t", &dur.to_string()]); }
-        c.arg("-i").arg(&src);
-        if clips.is_empty() {
-            c.args(["-vn", "-ac", "2", "-ar", "44100"]);
-            if !af.is_empty() { c.args(["-af", &af]); }
-        } else {
-            // main audio + every extra audio / video clip, mixed on the timeline (two or more play together)
-            let mut g = format!("[0:a]volume={vol}[a0];");
-            let mut labels = String::from("[a0]");
-            for (i, cl) in clips.iter().enumerate() {
-                let k = i + 1;
-                c.arg("-i").arg(cl["path"].as_str().unwrap_or(""));
-                let off = cl["off"].as_f64().unwrap_or(0.0);
-                let len = cl["len"].as_f64().unwrap_or(1.0);
-                let delay = (cl["delay"].as_f64().unwrap_or(0.0) * 1000.0).round() as i64;
-                let v = cl["vol"].as_f64().unwrap_or(1.0);
-                let lp = if cl["loop"].as_bool().unwrap_or(false) { "aloop=loop=-1:size=2147483647," } else { "" };
-                g.push_str(&format!("[{k}:a]{lp}atrim=start={off}:end={},asetpts=PTS-STARTPTS,volume={v},adelay={delay}|{delay}[a{k}];", off + len));
-                labels.push_str(&format!("[a{k}]"));
-            }
-            let n = clips.len() + 1;
-            let tail = if af.is_empty() { "anull".to_string() } else { af.clone() };
-            g.push_str(&format!("{labels}amix=inputs={n}:duration=longest:dropout_transition=0,volume={n},{tail}[aout]"));
-            c.args(["-filter_complex", &g, "-map", "[aout]", "-ac", "2", "-ar", "44100"]);
-        }
+        c.arg("-i").arg(&src).args(["-vn", "-ac", "2", "-ar", "44100"]);
+        if !af.is_empty() { c.args(["-af", &af]); }
         let o = c.arg(&wav).output().map_err(|e| format!("ffmpeg: {e}"))?;
         if !o.status.success() { return Err(format!("audio step failed: {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or(""))); }
         for (enc, extra) in [("h264_nvenc", vec!["-preset", "p4", "-tune", "hq", "-rc", "vbr", "-cq", "19", "-b:v", "8500k"]), ("libx264", vec!["-preset", "medium"])] {
             log(&format!("Encoding video ({enc})…"));
             let q = crf.to_string();
             let mut c = ffmpeg()?;
-            c.args(["-y", "-i", &video]).arg("-i").arg(&wav).args(["-map", "0:v:0", "-map", "1:a:0", "-vf", "fps=30", "-c:v", enc]);
+            c.args(["-y", "-progress", "pipe:1", "-nostats", "-stats_period", "1", "-i", &video]).arg("-i").arg(&wav).args(["-map", "0:v:0", "-map", "1:a:0", "-vf", "fps=30", "-c:v", enc]);
             if enc == "libx264" { c.args(["-crf", &q]); }
             c.args(&extra).args(["-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-c:a", "aac", "-b:a", "192k", "-af", "alimiter=limit=0.97", "-shortest", "-movflags", "+faststart"]).arg(&out);
-            let o = c.output().map_err(|e| format!("ffmpeg: {e}"))?;
-            if o.status.success() { let _ = std::fs::remove_file(&wav); return Ok(out.clone()); }
-            if enc == "libx264" { return Err(format!("encode failed: {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or(""))); }
+            let total_seconds = dur / speed;
+            let (status, last_error) = run_encode_progress(&app, c, total_seconds, enc)?;
+            if status.success() { let _ = std::fs::remove_file(&wav); let _ = std::fs::remove_file(&video); return Ok(out.clone()); }
+            if enc == "libx264" { return Err(format!("encode failed: {last_error}")); }
         }
         Err("encode failed".into())
     }).await.map_err(|e| e.to_string())?
@@ -646,8 +715,9 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
-            set_overrides, env_check, http_request, install_tool, read_file, write_file, reveal,
+            set_overrides, env_check, install_tool, read_file, write_file, append_file, reveal,
             ytdlp_version, ytdlp_update, ytdlp_download, transcribe, finalize_export
         ])
         .run(tauri::generate_context!())

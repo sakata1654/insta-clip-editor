@@ -29,8 +29,7 @@ Cohere models give no timestamps, so subtitle timing comes from voice-activity d
 ## Translate tab
 Gemini (or OpenAI / Claude / Groq / OpenRouter / Ollama). Lines are sent with their on-screen duration; results are cached.
 
-## Editor tips
-- **Timeline** (bottom): drag clips to move / resize, drag vertically to change lane, Ctrl+wheel to zoom. Keys: S split, M merge, D duplicate, Del delete.
-- **Assets** tab: add images, videos, audio. Put two audio clips on different lanes to play them together. "Until the end" loops a clip or holds a picture.
-- **Words** tab (or click a word on the preview): color / size for one word or every occurrence in the video.
-- Extra audio clips are mixed by FFmpeg in the desktop export.
+
+## Cohere Transcribe troubleshooting
+
+If Cohere fails, the Transcribe status now shows Python's recent diagnostic output instead of only a generic exit-code message. For gated-model errors, log in to Hugging Face, accept the conditions on the model page for the selected language, create a Read token from that same account, save it in Setup, and retry. For low-VRAM errors, close GPU-heavy applications and retry; the runner uses smaller batches on GPUs with less than 8 GB VRAM.
