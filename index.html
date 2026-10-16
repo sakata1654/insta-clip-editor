@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Insta Clip Studio</title>
+<title>Insta Clip Studio v1.1.0</title>
 <style>
 :root{--bg:#0e1014;--p:#161920;--p2:#1e222b;--b:#2a2f3a;--t:#e8eaf0;--m:#8b93a5;--a:#ff3d81}
 *{box-sizing:border-box}
@@ -37,7 +37,8 @@ input[type=range]{padding:0;accent-color:var(--a);width:100%}
 .rt .sw{width:30px;height:24px}
 .row textarea{width:100%;resize:vertical;min-height:44px}
 #main{grid-area:m;display:flex;flex-direction:column;min-height:0;min-width:0}
-#stagew{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px;background:#08090c}
+body.exporting header,body.exporting aside,body.exporting #tr,body.exporting #tlw{pointer-events:none;opacity:.68}
+#stagew{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:12px;background:#08090c}
 #c{max-width:100%;max-height:100%;background:#000;box-shadow:0 0 0 1px var(--b);cursor:move;touch-action:none}
 #tr{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--p);border-top:1px solid var(--b);flex-wrap:wrap}
 #tr .tm{font-variant-numeric:tabular-nums;color:var(--m)}
@@ -111,7 +112,6 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 
 <div class="pane" id="p-sty">
 <div class="hint">Default style for every subtitle. Each subtitle can override it in the Subtitles tab. Drag subtitles on the preview to move them.</div>
-<div class="row"><b>Dual subtitles — poem / qasida style</b><div class="hint">Keeps your existing dual-subtitle style and adds a parchment layout like your reference image.</div><label><input type="checkbox" id="dualOn"> Enable dual subtitles when a translation exists</label><label>Layout <select id="dualStyle"><option value="classic">Classic (existing)</option><option value="parchment">Poem / qasida · parchment</option></select></label><label>Arabic / source size <input id="dualSize" type="range" min="24" max="100" value="58"></label><label>Translation size <input id="dualTransSize" type="range" min="18" max="64" value="32"></label><label>Source subtitle vertical position <input id="dualSourceY" type="range" min="5" max="95" value="44"></label><label>Translation vertical position <input id="dualTransY" type="range" min="5" max="95" value="56"></label><label>Source horizontal position <input id="dualSourceX" type="range" min="5" max="95" value="50"></label><label>Translation horizontal position <input id="dualTransX" type="range" min="5" max="95" value="50"></label></div>
 <div class="bar" id="presets"></div>
 <div class="f"><label>Font</label><select data-k="st.font"><option>Impact, sans-serif</option><option>Arial Black, sans-serif</option><option>system-ui, sans-serif</option><option>Georgia, serif</option><option>Courier New, monospace</option><option>Comic Sans MS, cursive</option><option>Trebuchet MS, sans-serif</option></select><span></span></div>
 <div class="f"><label>Size</label><input type="range" min="20" max="200" data-k="st.size"><span class="v"></span></div>
@@ -143,7 +143,7 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 </aside>
 
 <section id="main">
-<div id="stagew"><canvas id="c"></canvas></div>
+<div id="stagew"><canvas id="c"></canvas><div id="exportCover" style="display:none;position:absolute;inset:0;z-index:5;background:rgba(8,10,14,.94);color:#f3f4f6;align-items:center;justify-content:center;text-align:center;padding:24px;pointer-events:auto"><div><div style="font-size:22px;font-weight:700;margin-bottom:10px">Rendering export…</div><div class="hint">Preview playback is hidden during export. You can monitor progress in the Export panel. Project switching is paused until the render finishes.</div><div class="pbar" style="max-width:360px;margin:18px auto"><i id="coverProgress"></i></div><div id="coverProgressText" class="hint">Preparing render…</div></div></div></div>
 <div id="tr">
 <button id="play">▶ Play</button><span class="tm" id="tm">0:00.0 / 0:00.0</span>
 <button id="setin">[ In</button><button id="setout">Out ]</button><span id="dm"><button data-m="video" class="on" title="Drag inside the frame moves the video. Wheel = zoom">✋ Move video</button><button data-m="frame" title="Drag moves the frame. Wheel = frame size (or hold Shift)">⤢ Move frame</button></span><button id="gd">Safe zones</button>
@@ -155,6 +155,7 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 <section id="tlw"><div id="lane">
 <div class="ruler" id="ruler"></div>
 <div class="trk" id="tvid"><i>VIDEO (trim)</i></div>
+<div class="trk" id="taud"><i>AUDIO / MP3</i></div>
 <div class="trk" id="tsubs"><i>SUBTITLES</i></div>
 <div class="trk" id="ttxt"><i>TEXT</i></div>
 <div id="ph"></div></div></section>
@@ -190,6 +191,7 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 <script>
 const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
 const V=$('#v'),C=$('#c'),X=C.getContext('2d',{alpha:false});
+const A=new Audio();A.preload='auto';A.crossOrigin='anonymous';let activeAudioUrl=null,audioDuration=0;
 const DIMS={'9:16':[1080,1920],'1:1':[1080,1080],'4:5':[1080,1350],'16:9':[1920,1080]};
 const AMIRI="Amiri, 'Segoe UI', Tahoma, serif";
 // Defaults mirror the original face_track_crop.py constants
@@ -309,6 +311,7 @@ function bannerX(g,tt){const sp=S.spk;if(S.sample||!sp.intro)return 0;const a=.5
 function partFor(a,t){if(!a.t.includes('|'))return[a.t,a.s];const ps=a.t.split('|').map(s=>s.trim()).filter(Boolean);if(ps.length<2)return[ps[0]||'',a.s];const tw=ps.reduce((n,p)=>n+p.split(/\s+/).length,0),d=a.e-a.s;let c=a.s;for(const p of ps){const e=c+d*p.split(/\s+/).length/Math.max(1,tw);if(t<e)return[p,c];c=e}return[ps[ps.length-1],c]}
 function drawDual(W,txt,anchor,translation=''){const d=S.du;const parchment=d.style==='parchment';let size=parchment?(+d.size||58):d.size,font,r;const t=clean(txt);for(;;){font=`700 ${size}px ${parchment?(d.font||AMIRI):(S.du.font||AMIRI)}`;r=lines(t,font,W*(parchment?.9:.82));if(r.L.length<=2||size-2<18)break;size-=2}
  const trans=clean(translation||''),ts=+d.transSize||32,lh=size*(parchment?1.3:1.25),tlh=ts*1.25,srcH=lh*r.L.length,tr=trans?lines(trans,`500 ${ts}px system-ui`,W*.9):{L:[]},trH=tlh*tr.L.length,pad=parchment?24:14,pw=parchment?W*.94:Math.min(W*.94,r.W+pad*2),ph=srcH+(trans?trH+18:0)+pad*2,srcX=W*cl(Number(d.sourceX??50),0,100)/100,trX=W*cl(Number(d.transX??50),0,100)/100,srcY=HDU(W,d.sourceY,anchor,ph),trY=HDU(W,d.transY,anchor,ph),px=(W-pw)/2,py=Math.max(0,Math.min(LH-ph,Math.min(srcY,trY)-ph/2));
+ S.duSourceBox={x:Math.max(0,srcX-W*.45),y:Math.max(0,srcY-srcH/2-8),w:W*.9,h:srcH+16};S.duTransBox=trans?{x:Math.max(0,trX-W*.45),y:Math.max(0,trY-trH/2-8),w:W*.9,h:trH+16}:null;
  X.save();if(parchment){X.fillStyle='#f4e8cf';X.fillRect(px,py,pw,ph);X.globalAlpha=.12;X.fillStyle='#9c7951';for(let i=0;i<18;i++){X.beginPath();X.ellipse(px+((i*97)%Math.max(1,pw)),py+((i*53)%Math.max(1,ph)),18+(i%5)*7,3+(i%3)*2,i*.7,0,Math.PI*2);X.fill()}X.globalAlpha=1;X.strokeStyle='#c5a879';X.lineWidth=2;X.strokeRect(px+8,py+8,pw-16,ph-16)}else{X.filter=`blur(${8*sc}px)`;X.fillStyle='rgba(0,0,0,.745)';rr(px+pad*.3,py+pad*.3,pw-pad*.6,ph-pad*.6,pad*.9);X.fill()}X.restore();
  X.save();X.textAlign='center';X.textBaseline='top';X.direction=isRtl(t)?'rtl':'ltr';X.font=font;X.fillStyle=parchment?'#17130f':'#fff';r.L.forEach((l,i)=>X.fillText(l,srcX,srcY-srcH/2+i*lh));if(trans){X.font=`500 ${ts}px system-ui`;X.direction=isRtl(trans)?'rtl':'ltr';X.fillStyle=parchment?'#29231d':'#f2f2f2';tr.L.forEach((l,i)=>X.fillText(l,trX,trY-trH/2+i*tlh))}X.restore()}
 function HDU(W,y,anchor,ph){if(Number.isFinite(+y))return LH*cl(+y,0,100)/100;return anchor.cy!=null?anchor.cy:anchor.bottom-ph/2}
@@ -374,7 +377,7 @@ function draw(){
   if(sp.wave){X.save();X.lineWidth=3;X.lineJoin='round';X.strokeStyle=th.accent;X.beginPath();const vx=bxp+45,vy=by-20;
    for(let i=0;i<75;i++){const nx=i/74,env=Math.sin(nx*Math.PI),w=speaking?(Math.sin(tt*5.5+nx*12)*.6+Math.cos(tt*7.2-nx*18)*.4)*22:Math.sin(tt*2-nx*6)*4;i?X.lineTo(vx+i,vy-w*env):X.moveTo(vx,vy)}X.stroke();X.restore()}}
  if(S.hd.on)drawHeading(W,H);
- S.subBox=null;S.act=null;
+ S.subBox=null;S.duSourceBox=null;S.duTransBox=null;S.act=null;
  const a=S.subs.find(s=>t>=s.s&&t<=s.e);
  if(a)S.act=a.id;
  if(a&&!S.sample){
@@ -401,11 +404,12 @@ function draw(){
 }
 const elPh=$('#ph'),elTm=$('#tm'),lane0=$('#lane');let lastTm='',lastAct=-1;
 function loop(){
- if(!exporting&&!V.paused&&S.trimE&&V.currentTime>=S.trimE)V.currentTime=S.trimS;
- if(!V.paused||exporting||dirty>0){
+ const playhead=(S.aud.track&&A.src&&!A.paused)?A.currentTime:(V.src?V.currentTime:(S.aud.track&&A.src?A.currentTime:0));
+ if(!exporting&&V.src&&!V.paused&&S.trimE&&V.currentTime>=S.trimE){V.pause();if(S.aud.track)A.pause();}
+ if(!V.paused||!A.paused||exporting||dirty>0){
   if(dirty>0)dirty--;draw();
-  const tm=fmt(V.currentTime)+' / '+fmt(dur);
-  if(tm!==lastTm){lastTm=tm;elTm.textContent=tm;elPh.style.transform=`translateX(${dur?V.currentTime/dur*lane0.clientWidth:0}px)`}
+  const tm=fmt(playhead)+' / '+fmt(dur||audioDuration);
+  if(tm!==lastTm){lastTm=tm;elTm.textContent=tm;elPh.style.transform=`translateX(${(dur||audioDuration)?playhead/(dur||audioDuration)*lane0.clientWidth:0}px)`}
   if(S.act!==lastAct){lastAct=S.act;$$('#subs .row').forEach(r=>r.classList.toggle('act',+r.dataset.id===S.act));const q=S.act&&$('#subs .row[data-id="'+S.act+'"]');if(q&&!V.paused)q.scrollIntoView({block:'nearest'})}
  }
  requestAnimationFrame(loop);
@@ -464,6 +468,7 @@ function tlDraw(){
  const d=dur||1,mk=(a,c)=>a.map(o=>`<div class="blk ${c}${S.sel===o.id?' on':''}" data-id="${o.id}" data-tr="${c}" style="left:${o.s/d*100}%;width:${Math.max((o.e-o.s)/d*100,.3)}%">${esc(o.t)}</div>`).join('');
  $('#tsubs').innerHTML='<i>SUBTITLES</i>'+mk(S.subs,'sb');$('#ttxt').innerHTML='<i>TEXT</i>'+mk(S.texts,'tx');
  $('#tvid').innerHTML=`<i>VIDEO (trim)</i>${S.shots.slice(1).map(sh=>`<u class="cut" style="left:${sh.t/d*100}%"></u>`).join('')}<div class="blk vd" data-tr="vd" style="left:${S.trimS/d*100}%;width:${(S.trimE-S.trimS)/d*100}%">${fmt(S.trimS)} – ${fmt(S.trimE)}</div>`;
+ const aud=$('#taud');if(aud)aud.innerHTML=`<i>AUDIO / MP3</i>${S.aud.track?`<div class="blk au" data-tr="au" title="${esc(S.aud.trackName||'Active audio')}" style="left:0;width:${Math.min(100,(audioDuration||d)/d*100)}%;background:#5b65a8">${esc(S.aud.trackName||'Active audio')} · ${fmt(audioDuration||d)}</div>`:'<span style="position:absolute;left:8px;top:20px;color:#70798b;font-size:10px">No external audio selected</span>'}`;
  let h='';const step=d>120?30:d>40?10:d>15?5:1;for(let t=0;t<d;t+=step)h+=`<span style="position:absolute;left:${t/d*100}%;font-size:10px;color:#8b93a5;padding-left:3px;border-left:1px solid #3a4150">${fmt(t).slice(0,-2)}</span>`;
  $('#ruler').innerHTML=h;$('#ruler').style.position='relative';
 }
@@ -471,14 +476,14 @@ let tlq=0;const tl=()=>{if(!tlq)tlq=requestAnimationFrame(()=>{tlq=0;tlDraw()})}
 const lane=$('#lane'),xt=e=>{const r=lane.getBoundingClientRect();return Math.min(dur,Math.max(0,(e.clientX-r.left)/r.width*dur))};
 lane.addEventListener('pointerdown',e=>{
  if(!dur)return;const b=e.target.closest('.blk');
- if(!b){drag={k:'seek'};V.currentTime=xt(e);lane.setPointerCapture(e.pointerId);return}
+ if(!b){drag={k:'seek'};seekTimeline(xt(e));lane.setPointerCapture(e.pointerId);return}
  const r=b.getBoundingClientRect(),m=e.clientX-r.left<7?'l':r.right-e.clientX<7?'r':'m';
- const tr=b.dataset.tr;if(tr==='vd'){if(m==='m')return;drag={k:'vd',m};}else{const arr=tr==='sb'?S.subs:S.texts,o=arr.find(x=>x.id===+b.dataset.id);S.sel=o.id;drag={k:'blk',o,m,x0:xt(e),s0:o.s,e0:o.e}}
+ const tr=b.dataset.tr;if(tr==='au'){drag={k:'seek'};seekTimeline(xt(e));lane.setPointerCapture(e.pointerId);return}if(tr==='vd'){if(m==='m')return;drag={k:'vd',m};}else{const arr=tr==='sb'?S.subs:S.texts,o=arr.find(x=>x.id===+b.dataset.id);S.sel=o.id;drag={k:'blk',o,m,x0:xt(e),s0:o.s,e0:o.e}}
  lane.setPointerCapture(e.pointerId);
 });
 lane.addEventListener('pointermove',e=>{
  if(!drag)return;const t=xt(e);
- if(drag.k==='seek')V.currentTime=t;
+ if(drag.k==='seek')seekTimeline(t);
  else if(drag.k==='vd'){if(drag.m==='l')S.trimS=Math.min(t,S.trimE-.2);else S.trimE=Math.max(t,S.trimS+.2);tl()}
  else{const o=drag.o,dx=t-drag.x0;if(drag.m==='m'){const len=drag.e0-drag.s0;o.s=Math.min(Math.max(0,drag.s0+dx),dur-len);o.e=o.s+len}else if(drag.m==='l')o.s=Math.min(Math.max(0,drag.s0+dx),o.e-.1);else o.e=Math.max(o.s+.1,Math.min(dur,drag.e0+dx));tl()}
 });
@@ -492,6 +497,8 @@ const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
 let pd=null;
 C.addEventListener('pointerenter',()=>{S.hov=1;inv()});C.addEventListener('pointerleave',()=>{S.hov=0;inv()});
 C.addEventListener('pointerdown',e=>{const[x,y]=cp(e),fb=S.frBox,box=S.fr.on&&fb?fb:{x:0,y:0,w:LW,h:LH},o=[...S.texts].reverse().find(o=>hit(o.box,x,y));
+ if(S.du.on&&S.duSourceBox&&hit(S.duSourceBox,x,y)&&S.du.dragTarget!=='translation'){pd={du:'source',x0:x,y0:y,sx:S.du.sourceX??50,sy:S.du.sourceY??44};C.setPointerCapture(e.pointerId);return}
+ if(S.du.on&&S.duTransBox&&hit(S.duTransBox,x,y)&&(S.du.dragTarget==='translation'||!hit(S.duSourceBox,x,y))){pd={du:'translation',x0:x,y0:y,sx:S.du.transX??50,sy:S.du.transY??56};C.setPointerCapture(e.pointerId);return}
  if(fb&&Math.hypot(x-(fb.x+fb.w),y-(fb.y+fb.h))<48)pd={rs:1,x0:x,w0:S.fr.w};
  else if(o){S.sel=o.id;pd={o};lists()}
  else if(hit(S.subBox,x,y))pd={sub:1};
@@ -499,29 +506,41 @@ C.addEventListener('pointerdown',e=>{const[x,y]=cp(e),fb=S.frBox,box=S.fr.on&&fb
  else return;
  C.setPointerCapture(e.pointerId)});
 C.addEventListener('pointermove',e=>{if(!pd)return;const[x,y]=cp(e),F=S.fr;
+ if(pd.du){const prefix=pd.du==='source'?'source':'trans';S.du[prefix+'X']=cl(Math.round((pd.sx+(x-pd.x0)/LW*100)*10)/10,5,95);S.du[prefix+'Y']=cl(Math.round((pd.sy+(y-pd.y0)/LH*100)*10)/10,5,95);$('#dual'+(prefix==='source'?'Source':'Trans')+'X').value=S.du[prefix+'X'];$('#dual'+(prefix==='source'?'Source':'Trans')+'Y').value=S.du[prefix+'Y'];inv();return}
  if(pd.rs)F.w=cl(Math.round((pd.w0+(x-pd.x0)/LW*200)*10)/10,30,100);
  else if(pd.o){pd.o.x=Math.round(x/LW*1000)/10;pd.o.y=Math.round(y/LH*1000)/10}
  else if(pd.fr){let nx=pd.fx+(x-pd.x0)/LW*100,ny=pd.fy+(y-pd.y0)/LH*100;if(Math.abs(nx-50)<1.5)nx=50;if(Math.abs(ny-50)<1.5)ny=50;F.x=Math.round(nx*10)/10;F.y=Math.round(ny*10)/10}
  else if(pd.pan){const[dw,dh]=vg(pd.bw,pd.bh,S.fx.zoom/100),mx=(dw-pd.bw)/2/pd.bw*100,my=(dh-pd.bh)/2/pd.bh*100;S.fx.px=Math.round(cl(pd.px+(x-pd.x0)/pd.bw*100,-mx,mx)*10)/10;S.fx.py=Math.round(cl(pd.py+(y-pd.y0)/pd.bh*100,-my,my)*10)/10;saveShot()}
  else{const v=cl(Math.round(y/LH*100),5,95),a=S.subs.find(s=>s.id===S.act);if(a&&a.st&&a.st.y!==undefined)a.st.y=v;else{S.st.y=v;S.st.auto=0}}
  syncBinds()});
-C.addEventListener('pointerup',()=>{if(pd&&(pd.o||pd.sub))lists();pd=null});
+C.addEventListener('pointerup',()=>{if(pd&&(pd.o||pd.sub))lists();if(pd?.du)snap();pd=null});
 C.addEventListener('wheel',e=>{e.preventDefault();const d=e.deltaY<0?1:-1;{const[wx,wy]=cp(e);if(hit(S.subBox,wx,wy)){const a=S.subs.find(q=>q.id===S.act);if(a&&a.st&&a.st.size!==undefined)a.st.size=cl(a.st.size+d*2,10,300);else S.st.size=cl(S.st.size+d*2,20,200);syncBinds();lists();inv();return}}if(S.fr.on&&(S.dm==='frame'||e.shiftKey))S.fr.w=cl(S.fr.w+d*2,30,100);else{S.fx.zoom=cl(S.fx.zoom+d*4,100,300);saveShot()}syncBinds();inv()},{passive:false});
 
 /* ---------- transport / file ---------- */
 let videoObjectUrl=null;
-function openVideo(f,path){if(!f)return Promise.resolve(false);S.file=f;S.path=path||null;return new Promise(resolve=>{let settled=false;const finish=ok=>{if(settled)return;settled=true;resolve(ok)};V.onloadedmetadata=()=>{dur=Number.isFinite(V.duration)?V.duration:0;S.trimS=0;S.trimE=dur;V.currentTime=0;lists();inv();toast('Loaded '+f.name);finish(true)};V.onerror=()=>{toast('Could not open this video format. Try MP4 or WebM.');finish(false)};if(videoObjectUrl)try{URL.revokeObjectURL(videoObjectUrl)}catch{}videoObjectUrl=URL.createObjectURL(f);V.src=videoObjectUrl;V.load()})}
+function seekTimeline(t){const time=Math.max(0,Math.min(Number.isFinite(dur)&&dur>0?dur:(audioDuration||0),t||0));if(V.src){try{V.currentTime=time}catch{}}if(S.aud.track&&A.src){try{A.currentTime=Math.min(time,Number.isFinite(A.duration)?A.duration:time)}catch{}}inv();tl()}
+function syncExternalAudio(){if(!S.aud.track||!A.src)return;V.muted=true;try{A.currentTime=Math.min(V.currentTime,Number.isFinite(A.duration)?A.duration:V.currentTime)}catch{}}
+function openVideo(f,path){if(!f)return Promise.resolve(false);S.file=f;S.path=path||null;return new Promise(resolve=>{let settled=false;const finish=ok=>{if(settled)return;settled=true;resolve(ok)};V.onloadedmetadata=()=>{dur=Number.isFinite(V.duration)?V.duration:0;S.trimS=0;S.trimE=dur;V.currentTime=0;V.muted=!!S.aud.track;if(S.aud.track)syncExternalAudio();else V.volume=S.vol/100;lists();tl();inv();toast('Loaded '+f.name);finish(true)};V.onerror=()=>{toast('Could not open this video format. Try MP4 or WebM.');finish(false)};if(videoObjectUrl)try{URL.revokeObjectURL(videoObjectUrl)}catch{}videoObjectUrl=URL.createObjectURL(f);V.src=videoObjectUrl;V.load()})}
 async function pickVideo(){const T=window.__TAURI__;if(T?.dialog){try{const p=await T.dialog.open({filters:[{name:'Video',extensions:['mp4','mov','mkv','webm','avi','m4v']}]});if(p)await loadPath(p)}catch(e){toast(String(e))}}else $('#fv').click()}
 async function loadPath(p){toast('Loading video…');const buf=await window.__TAURI__.core.invoke('read_file',{path:p}),n=p.split(/[\\/]/).pop();return await openVideo(new File([buf],n,{type:/\.webm$/i.test(n)?'video/webm':'video/mp4'}),p)}
 $('#open').onclick=pickVideo;$('#fv').onchange=e=>openVideo(e.target.files[0]);
 addEventListener('dragover',e=>{e.preventDefault();$('#drop').style.display='grid'});
 addEventListener('dragleave',e=>{if(!e.relatedTarget)$('#drop').style.display='none'});
 addEventListener('drop',e=>{e.preventDefault();$('#drop').style.display='none';const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('video'))openVideo(f)});
-const toggle=()=>{if(!V.src)return;if(V.paused){if(V.currentTime>=S.trimE-.05)V.currentTime=S.trimS;V.play()}else V.pause()};
+async function toggle(){
+ if(!V.src&&S.aud.track){const bg=assetLibrary.find(a=>a.type==='video');if(bg){try{const path=await assetPath(bg);await loadPath(path);S.fg.mode='video';V.muted=true;inv()}catch(e){toast('Could not load the video asset: '+(e.message||e));return}}}
+ if(!V.src&&!S.aud.track)return toast('Add a video source, or add an MP3 and select a background image/video in Assets.');
+ const playing=(!V.paused)||(!A.paused);
+ if(!playing){if(V.src){if(V.currentTime>=S.trimE-.05)V.currentTime=S.trimS;V.play().catch(e=>toast('Video playback failed: '+e.message))}if(S.aud.track&&A.src){if(A.currentTime>=A.duration-.05)A.currentTime=S.trimS;A.playbackRate=+$('#spd').value||1;A.play().catch(e=>toast('Audio playback failed: '+e.message))}}
+ else{V.pause();A.pause()}
+}
 $('#play').onclick=toggle;
-$('#setin').onclick=()=>{S.trimS=Math.min(V.currentTime,S.trimE-.2);tl()};
-$('#setout').onclick=()=>{S.trimE=Math.max(V.currentTime,S.trimS+.2);tl()};
-$('#spd').onchange=e=>V.playbackRate=+e.target.value;
+$('#setin').onclick=()=>{const now=V.src?V.currentTime:(S.aud.track&&A.src?A.currentTime:0);S.trimS=Math.min(now,S.trimE-.2);tl()};
+$('#setout').onclick=()=>{const now=V.src?V.currentTime:(S.aud.track&&A.src?A.currentTime:0);S.trimE=Math.max(now,S.trimS+.2);tl()};
+$('#spd').onchange=e=>{V.playbackRate=+e.target.value;A.playbackRate=+e.target.value};
+A.addEventListener('timeupdate',()=>{if(!V.src){if(A.currentTime>=S.trimE&&S.trimE>0){A.pause();A.currentTime=S.trimS}inv();tl()} });
+A.addEventListener('play',()=>{$('#play').textContent='⏸ Pause'});A.addEventListener('pause',()=>{if(V.paused)$('#play').textContent='▶ Play'});
+V.addEventListener('timeupdate',()=>{if(S.aud.track&&A.src&&!A.paused&&Math.abs(A.currentTime-V.currentTime)>.35)try{A.currentTime=V.currentTime}catch{} });
 $('#asp').onchange=e=>{S.aspect=e.target.value;setAspect()};
 addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
  if(e.code==='Space'){e.preventDefault();toggle()}
@@ -534,22 +553,7 @@ async function saveBlob(b,name){
  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
 }
 async function writeBytes(p,blob){await window.__TAURI__.core.invoke('write_file',new Uint8Array(await blob.arrayBuffer()),{headers:{path:encodeURIComponent(p)}})}
-$('#savep').onclick=()=>saveBlob(new Blob([JSON.stringify({fr:S.fr,card:S.card,subs:S.subs,texts:S.texts.map(({box,...r})=>r),st:S.st,fx:S.fx,aspect:S.aspect,trimS:S.trimS,trimE:S.trimE,vol:S.vol},null,1)],{type:'application/json'}),'project.json');
 $('#loadp').onclick=()=>$('#fp').click();
-$('#fp').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());Object.assign(S,{fr:{...FR0,...j.fr},card:{...CARD0,...j.card},subs:j.subs||[],texts:j.texts||[],st:{...ST0,...j.st},fx:{...FX0,...j.fx},aspect:j.aspect||'9:16',vol:j.vol??100});if(j.trimE&&j.trimE<=(dur||1e9)){S.trimS=j.trimS;S.trimE=j.trimE}uid=1+Math.max(0,...S.subs.map(x=>x.id),...S.texts.map(x=>x.id));$('#asp').value=S.aspect;setAspect();syncBinds();setAvatar(S.card.img);lists();toast('Project loaded')}catch{toast('Invalid project file')}e.target.value=''};
-$('#exp').onclick=async()=>{
- if(!V.src||exporting)return toast('Open a video first');
- sc=1;setAspect();await new Promise(r=>setTimeout(r,60));const cs=C.captureStream(30);
- try{(V.captureStream?V.captureStream():V.mozCaptureStream()).getAudioTracks().forEach(a=>cs.addTrack(a))}catch{}
- const mt=['video/mp4;codecs=avc1','video/webm;codecs=vp9,opus','video/webm'].find(m=>MediaRecorder.isTypeSupported(m));
- const rec=new MediaRecorder(cs,{mimeType:mt,videoBitsPerSecond:12e6}),ch=[];
- rec.ondataavailable=e=>e.data.size&&ch.push(e.data);const done=new Promise(r=>rec.onstop=r);
- V.pause();const sk=new Promise(r=>V.addEventListener('seeked',r,{once:true}));V.currentTime=S.trimS;await sk;
- exporting=true;rec.start(500);V.play();
- await new Promise(r=>{const iv=setInterval(()=>{$('#prog').textContent='Exporting '+Math.round((V.currentTime-S.trimS)/(S.trimE-S.trimS)*100)+'%';if(V.currentTime>=S.trimE||V.ended){clearInterval(iv);r()}},120)});
- V.pause();rec.stop();await done;exporting=false;$('#prog').textContent='';sc=PQ;setAspect();
- saveBlob(new Blob(ch,{type:mt.split(';')[0]}),'clip.'+(mt.includes('mp4')?'mp4':'webm'));
-};
 
 /* ---------- color picker ---------- */
 const pk=$('#pk'),sv=$('#sv'),sx=sv.getContext('2d'),PAL=['#ffffff','#000000','#ffd400','#ff3d81','#ff5a36','#00ffd0','#3b82f6','#8b5cf6','#22c55e','#f97316','#ef4444','#94a3b8'];
@@ -588,7 +592,7 @@ addEventListener('keydown',e=>{if(e.key==='Escape'&&pc)closePk()});
 /* ---------- perf: redraw only when something changed ---------- */
 ['input','click','pointermove','pointerup','keydown','change'].forEach(n=>document.addEventListener(n,inv,true));
 ['seeked','loadeddata'].forEach(n=>V.addEventListener(n,inv));
-['play','pause','ended'].forEach(n=>V.addEventListener(n,()=>{$('#play').textContent=V.paused?'▶ Play':'⏸ Pause';inv()}));
+['play','pause','ended'].forEach(n=>V.addEventListener(n,()=>{$('#play').textContent=(!V.paused||!A.paused)?'⏸ Pause':'▶ Play';inv()}));
 $('#pq').onchange=e=>{PQ=sc=+e.target.value;setAspect()};
 
 /* ---------- frame pane ---------- */
@@ -611,14 +615,15 @@ $('#p-cam').innerHTML=rows([['cam','Camera mode','sel',[['auto','Auto-center eac
 $('#p-ovl').innerHTML=rows([['','Persistent heading','h'],['hd.on','Heading','chk'],['hd.text','Text','txt'],['hd.auto','Avoid the face','chk'],['hd.y','Position %','r',5,95],['hd.scale','Scale %','r',50,150],['hd.s1','Main size','r',30,160],['hd.s2','2nd line size','r',20,120],['hd.font','Font','sel',FSEL],['hd.scrim','Dark scrim','chk'],['','Use “|” for a smaller second line','h'],
  ['','Speaker banner','h'],['spk.on','Banner','chk'],['spk.text','Name | line 2','txt'],['spk.s1','Name size','r',24,90],['spk.s2','Line 2 size','r',16,70],['spk.font','Font','sel',FSEL],['spk.gap','Gap under card','r',0,300],['spk.intro','Slide-in','chk'],['spk.prog','Progress line','chk'],['spk.wave','Voice wave','chk'],
  ['','Watermark stamp','h'],['wm.on','Watermark','chk'],['wm.text','Text','txt'],['wm.size','Size','r',20,80],['wm.font','Font','sel',FSEL],['wm.dy','Offset Y','r',-200,60],
- ['','Dual subtitles','h'],['du.on','Show original line','chk'],['du.size','Size','r',20,60],['du.font','Font','sel',FSEL]])+'<div class="hint">Dual subtitles show the original-language line (kept when you use AI translate or edit after Whisper).</div>';
+ ['','Dual subtitles','h'],['du.on','Show original line','chk'],['du.font','Font','sel',FSEL]])+'<div class="hint">Dual subtitles show the original-language line (kept when you use AI translate or edit after Whisper).</div><div class="row"><b>Dual subtitle layout</b><label>Layout <select id="dualStyle"><option value="classic">Classic</option><option value="parchment">Poem / qasida · parchment</option></select></label><label>Source text size <input id="dualSize" type="range" min="24" max="100" value="58"></label><label>English translation size <input id="dualTransSize" type="range" min="18" max="64" value="32"></label><label>Source vertical position <input id="dualSourceY" type="range" min="5" max="95" value="44"></label><label>Translation vertical position <input id="dualTransY" type="range" min="5" max="95" value="56"></label><label>Source horizontal position <input id="dualSourceX" type="range" min="5" max="95" value="50"></label><label>Translation horizontal position <input id="dualTransX" type="range" min="5" max="95" value="50"></label><div class="bar"><button id="dualMoveSource" type="button" class="pri">↔ Move source subtitle</button><button id="dualMoveTranslation" type="button">↔ Move translation</button></div><div class="hint">Drag the selected subtitle directly on the preview. If the layers overlap, select which one to move here.</div></div>';
+const dualToggle=$('#p-ovl [data-k="du.on"]');if(dualToggle)dualToggle.id='dualOn';
 $('#p-sty').innerHTML='<div class="hint">Default for every subtitle (original look: Arial Bold 76, theme color, black outline, fade-in). Each subtitle can override it in the Subtitles tab.</div><div class="bar" id="presets"></div>'+rows([['st.font','Font','sel',FONTS.map(([n,v])=>[v,n])],['st.size','Size','r',20,200],['st.lh','Line spacing','r',.8,2,.05],['st.ls','Letter spacing','r',-2,20,.5],['st.hl','Word highlight','chk'],['st.hlc','Highlight color','c'],['st.acc','Theme color','chk'],['st.color','Text color','c'],['st.stroke','Outline color','c'],['st.sw','Outline','r',0,30],['st.bg','Box color','c'],['st.bga','Box opacity','r',0,100],['st.auto','Auto position','chk'],['st.y','Vertical pos','r',5,95],['st.w','Max width %','r',30,100],['st.fit','Auto-fit 4 lines','chk'],['st.bold','Bold','chk'],['st.upper','UPPERCASE','chk'],['st.anim','Animation','sel',[['fade','Fade + rise'],['pop','Pop'],['none','None']]],['st.shadow','Shade','chk'],['st.shc','Shade color','c'],['st.sha','Shade opacity','r',0,100],['st.shb','Shade blur','r',0,60],['st.shx','Shade X','r',-50,50],['st.shy','Shade Y','r',-50,50]]);
 $('#presets').innerHTML=Object.keys(PRESETS).map(n=>`<button data-pr="${n}">${n}</button>`).join('');
 $('#presets').onclick=e=>{const n=e.target.dataset.pr;if(n){Object.assign(S.st,ST0,PRESETS[n]);if(S.mode==='simple'){S.st.acc=0;S.st.color='#ffffff'}syncBinds()}};
 $('#p-exp').innerHTML=rows([['ex.arch','Auto-save project files','chk'],['ex.crf','Quality (lower = better)','r',14,28]])+'<div class="bar" style="margin-top:10px"><button id="exp2" class="pri">Export video</button><button id="thumb">Save thumbnail</button><button id="openp">Open project folder</button></div><div class="pbar" id="exportProgress" role="progressbar" aria-label="Export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><div class="hint" id="exportProgressText" aria-live="polite">Ready to export</div><div class="hint" id="exst"></div><div class="hint">Desktop app: renders the picture, then FFmpeg adds the (optionally enhanced) audio and encodes MP4 with NVENC or x264. Everything (clip, subtitles, thumbnail, caption, project) is saved in Documents/Insta Clip Studio/Projects.</div>';
 $('#p-aud').innerHTML=rows([['aud.enh','Studio enhancement','chk'],['aud.vocals','Strip music (Demucs)','chk'],['aud.model','Demucs model','sel',[['htdemucs','htdemucs (fast)'],['htdemucs_ft','htdemucs_ft (cleaner, slower)']]],['','Pre-enhanced audio','html','<button id="preb">Choose file…</button><button id="prex">Clear</button>']])+'<div class="hint" id="prest"></div><div class="hint">Enhancement chain: declip, denoise, high-pass, EQ, air, compression, loudness normalize (-16 LUFS), limiter. Demucs needs Python + <code>pip install demucs</code>. A pre-enhanced file (e.g. from Adobe Podcast) skips straight to compression + loudness.</div>';
 $('#p-cap').innerHTML='<div class="f" style="grid-template-columns:70px 1fr"><label>Title</label><input id="cptitle"></div><div class="f" style="grid-template-columns:70px 1fr"><label>Link</label><input id="cplink"></div><div class="f" style="grid-template-columns:70px 1fr"><label>Start</label><input id="cpstart"></div><div class="f" style="grid-template-columns:70px 1fr"><label>End</label><input id="cpend"></div><div class="f" style="grid-template-columns:70px 1fr"><label>Speaker</label><input id="cpspk"></div><label class="hint">Explanation (from your subtitles)</label><textarea id="cpexp" style="width:100%;min-height:90px"></textarea><div class="bar" style="margin-top:8px"><button id="cpbuild" class="pri">Build caption</button><button id="cpcopy">Copy</button><button id="cpsave">Save .txt</button></div><textarea id="cpout" style="width:100%;min-height:150px"></textarea>';
-$('#p-assets').innerHTML='<h3 style="margin:0 0 8px">Assets</h3><div class="hint">Import images, videos and audio into this project. Image/video assets can be used as the visual source or frame image. An audio asset can drive subtitle generation and the final exported soundtrack.</div><div class="bar"><button id="assetAddImage">＋ Image</button><button id="assetAddVideo">＋ Video</button><button id="assetAddAudio" class="pri">＋ Audio / MP3</button></div><div class="row"><b>Active speech / export audio</b><div class="hint" id="assetAudioStatus">'+(S.aud.trackName?esc(S.aud.trackName):'Using audio from the current video, if any')+'</div><div class="bar"><button id="assetUseVideoAudio">Use source video audio</button><button id="assetRefresh">Refresh list</button></div></div><div id="assetStatus" class="hint" aria-live="polite"></div><div id="assetList"></div><h3 style="margin:14px 0 8px">Added to video</h3><div id="assetOverlayList"></div><div class="hint">For an audio-only lecture: add an MP3, then add an image and choose “Create timed background”. Your subtitle styles, translation settings and timeline controls remain available.</div>';
+$('#p-assets').innerHTML='<h3 style="margin:0 0 8px">Assets</h3><div class="hint">Import images, videos and audio into this project. Image/video assets can be used as the visual source or frame image. An audio asset appears on its own timeline lane, drives subtitle generation, and can play synced with the selected video.</div><div class="bar"><button id="assetAddImage">＋ Image</button><button id="assetAddVideo">＋ Video</button><button id="assetAddAudio" class="pri">＋ Audio / MP3</button></div><div class="row"><b>Active speech / export audio</b><div class="hint" id="assetAudioStatus">'+(S.aud.trackName?esc(S.aud.trackName):'Using audio from the current video, if any')+'</div><div class="bar"><button id="assetUseVideoAudio">Use source video audio</button><button id="assetRefresh">Refresh list</button></div></div><div id="assetStatus" class="hint" aria-live="polite"></div><div id="assetList"></div><h3 style="margin:14px 0 8px">Added to video</h3><div id="assetOverlayList"></div><div class="hint">For an audio-only lecture: add an MP3, then add an image and choose “Create timed background”. If you already added a background video, choose “Use as video source”. The Play button previews video and external audio together.</div>';
 $('#avb').onclick=()=>$('#fimg').click();
 $('#fimg').onchange=e=>{const f=e.target.files[0];if(!f)return;const i=new Image();i.onload=()=>{fgImg=i;S.fg.mode='image';syncBinds();inv()};i.src=URL.createObjectURL(f);e.target.value=''};
 $('#ovb').onclick=()=>$('#fov').click();$('#ovx').onclick=()=>{ovlImg=null;buildOvl()};
@@ -648,15 +653,6 @@ function addDone(p){const d=document.createElement('div'),n=p.split(/[\\/]/).pop
 
 /* ---------- whisper + AI translate ---------- */
 TA?.event?.listen('whisper-log',e=>{const p=String(e.payload||''),x=/extract-progress=(\d+)%/.exec(p),m=/progress\s*=\s*(\d+)%/.exec(p);if(x){$('#asrbar i').style.width=x[1]+'%';$('#asrst').textContent='Extracting audio… '+x[1]+'%';return}if(p==='extract-progress=working'){$('#asrst').textContent='Extracting audio… (processing)';return}if(p==='phase=loading-model'){$('#asrst').textContent='Audio extracted. Preparing transcription model…';$('#asrbar i').style.width='0%';return}if(m){$('#asrbar i').style.width=m[1]+'%';$('#asrst').textContent='Transcribing… '+m[1]+'%'}});
-function mergeSentenceSubtitles(items){const out=[],ends=/[.!?؟۔…:;؛।]$/;for(const raw of (items||[])){const cur={...raw,t:String(raw.t||'').trim()};if(!cur.t)continue;if(!out.length){out.push(cur);continue}const prev=out[out.length-1],gap=Math.max(0,(+cur.s||0)-(+prev.e||0)),words=(prev.t+' '+cur.t).trim().split(/\s+/);if(ends.test(prev.t)||gap>=.85||words.length>42||(+cur.e-(+prev.s))>9){out.push(cur)}else{prev.t=(prev.t+' '+cur.t).replace(/\s+/g,' ').trim();prev.e=cur.e;if(prev.words&&cur.words)prev.words.push(...cur.words)}}return out}
-$('#asrgo').onclick=async()=>{
- if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file&&!S.aud.track)return toast('Add an audio asset or open a video first');
- const b=$('#asrgo');b.disabled=true;$('#asrbar i').style.width='0';
- try{let input=await transcriptionPath();
-  $('#asrst').textContent='Extracting audio…';
-  const out=await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen:+$('#asrml').value||0,translate:$('#asrtr').checked,model:'base',durationHint:await transcriptionDuration()});
-  S.subs=mergeSentenceSubtitles(parseSRT(out).sort((x,y)=>x.s-y.s));lists();$('#asrbar i').style.width='100%';$('#asrst').textContent=S.subs.length+' subtitles created. Edit anything below.';snap()}
- catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
 const PROV={openai:['https://api.openai.com/v1','gpt-4o-mini'],anthropic:['https://api.anthropic.com/v1','claude-haiku-4-5-20251001'],gemini:['https://generativelanguage.googleapis.com/v1beta/openai','gemini-2.0-flash'],groq:['https://api.groq.com/openai/v1','llama-3.3-70b-versatile'],openrouter:['https://openrouter.ai/api/v1','openai/gpt-4o-mini'],ollama:['http://localhost:11434/v1','llama3.1'],custom:['','']};
 let API={prov:'openai',url:PROV.openai[0],key:'',model:PROV.openai[1]};try{API={...API,...JSON.parse(localStorage.icsApi||'{}')}}catch{}
 const apiFill=()=>{$('#apip').value=API.prov;$('#apiu').value=API.url;$('#apik').value=API.key;$('#apimd').value=API.model};
@@ -734,11 +730,11 @@ async function assetImage(a){if(a.img)return a.img;const f=await assetFile(a),ur
 function renderAssets(){const root=$('#assetList');if(!root)return;root.innerHTML=assetLibrary.map(a=>{const d=a.type==='audio'&&a.duration?` · ${fmt(a.duration)}`:'';let acts='';if(a.type==='image')acts='<button data-aa="image">Use image in frame</button><button data-aa="overlay">Add image overlay</button><button data-aa="background" class="pri">Create timed background</button>';else if(a.type==='video')acts='<button data-aa="video" class="pri">Use as video source</button><button data-aa="overlay">Add video overlay</button>';else acts='<button data-aa="audio" class="pri">Use for subtitles & export</button>';return `<div class="row" data-asset="${a.id}"><div class="rt"><b style="flex:1;overflow-wrap:anywhere">${assetEsc(a.name)}</b><span class="hint" style="margin:0">${a.type.toUpperCase()}${d}</span></div><div class="bar">${acts}<button data-aa="remove" title="Remove asset">✕</button></div></div>`}).join('')||'<div class="hint">No assets yet. Add an image, video or audio file above.</div>';const ol=$('#assetOverlayList');if(ol)ol.innerHTML=(S.mediaOverlays||[]).map(o=>`<div class="row" data-oid="${o.id}"><div class="rt"><b style="flex:1">${assetEsc(o.name)}</b><button data-oa-remove>Remove</button></div><div class="asset-ov-controls"><label>Start (s)<input type="number" min="0" step="0.1" data-oa="start" value="${(+o.start||0).toFixed(1)}"></label><label>End (s)<input type="number" min="0.1" step="0.1" data-oa="end" value="${(+o.end||dur||1).toFixed(1)}"></label><label>X %<input type="number" min="0" max="100" step="1" data-oa="x" value="${o.x??50}"></label><label>Y %<input type="number" min="0" max="100" step="1" data-oa="y" value="${o.y??50}"></label><label>Width %<input type="number" min="1" max="100" step="1" data-oa="w" value="${o.w??30}"></label><label>Height %<input type="number" min="1" max="100" step="1" data-oa="h" value="${o.h??30}"></label><label>Opacity %<input type="number" min="0" max="100" step="1" data-oa="opacity" value="${o.opacity??100}"></label></div></div>`).join('')||'<div class="hint">No image/video overlays yet. Add an image or video above, then choose Add overlay.</div>';$('#assetAudioStatus').textContent=S.aud.track?(S.aud.trackName||S.aud.track.split(/[\\/]/).pop()):'Using audio from the current video, if any'}
 async function addAssetPath(path,type){const name=path.split(/[\\/]/).pop(),old=assetLibrary.find(a=>a.path===path);if(old){if(type==='audio')await activateAudioAsset(old);renderAssets();return old}const a={id:Date.now()+Math.floor(Math.random()*1000),name,type,path,duration:0,file:null,img:null,url:null};assetLibrary.unshift(a);if(type==='audio'){await activateAudioAsset(a)}saveAssets();renderAssets();$('#assetStatus').textContent=`Added ${type}: ${name}`;return a}
 async function addAssetFile(file,type){const a={id:Date.now()+Math.floor(Math.random()*1000),name:file.name,type,path:null,duration:0,file,img:null,url:null};assetLibrary.unshift(a);if(type==='audio')await activateAudioAsset(a);saveAssets();renderAssets();$('#assetStatus').textContent=`Added ${type}: ${file.name}`;return a}
-async function activateAudioAsset(a){const path=await assetPath(a);S.aud.track=path;S.aud.trackName=a.name;try{localStorage.icsAudioTrack=path;localStorage.icsAudioName=a.name}catch{}let d=0;try{d=await assetAudioDuration(a)}catch{}if(d>0)$('#assetStatus').textContent=`Active audio: ${a.name} (${fmt(d)}). Subtitles will be generated from this file.`;else $('#assetStatus').textContent=`Active audio: ${a.name}. Subtitles will be generated from this file.`;renderAssets()}
+async function activateAudioAsset(a){const path=await assetPath(a);S.aud.track=path;S.aud.trackName=a.name;try{localStorage.icsAudioTrack=path;localStorage.icsAudioName=a.name}catch{}const file=await assetFile(a);if(activeAudioUrl)try{URL.revokeObjectURL(activeAudioUrl)}catch{}activeAudioUrl=URL.createObjectURL(file);A.pause();A.src=activeAudioUrl;A.load();let d=0;try{d=await assetAudioDuration(a)}catch{}audioDuration=d||0;if(!V.src&&d>0){dur=d;S.trimS=0;S.trimE=d;$('#tm').textContent=fmt(0)+' / '+fmt(d)}if(V.src)V.muted=true;tl();inv();if(d>0)$('#assetStatus').textContent=`Active audio: ${a.name} (${fmt(d)}). Audio is on the timeline and will play with the selected video.`;else $('#assetStatus').textContent=`Active audio: ${a.name}. Audio is on the timeline.`;renderAssets()}
 async function transcriptionPath(){if(S.aud.track){const a=assetLibrary.find(x=>x.path===S.aud.track);if(a)return await assetPath(a);return S.aud.track}return await sourcePath()}
 async function transcriptionDuration(){if(S.aud.track){const a=assetLibrary.find(x=>x.path===S.aud.track);if(a){try{const d=await assetAudioDuration(a);if(d>0)return d}catch{}}try{const d=await TA.core.invoke('media_duration',{path:S.aud.track});if(Number.isFinite(d)&&d>0)return d}catch{}return dur||undefined}return dur||undefined}
 async function addAssetDialog(type){const T=window.__TAURI__,filters={image:[{name:'Images',extensions:['png','jpg','jpeg','webp','bmp','gif']}],video:[{name:'Videos',extensions:['mp4','mov','mkv','webm','avi','m4v']}],audio:[{name:'Audio',extensions:['mp3','wav','m4a','aac','flac','ogg','opus','wma']}]};if(T?.dialog){const p=await T.dialog.open({multiple:false,filters:filters[type]});if(p)await addAssetPath(p,type)}else $(`#fa-${type}`).click()}
-async function createTimedBackground(imageAsset){if(!TA?.core)throw new Error('Creating an audio-length background requires the desktop app.');if(!S.aud.track)throw new Error('Add an audio file first, then create the timed background.');const imagePath=await assetPath(imageAsset),audio=assetLibrary.find(a=>a.path===S.aud.track),duration=await transcriptionDuration();if(!duration||!Number.isFinite(duration))throw new Error('Could not determine the selected audio duration. Re-add the audio file and try again.');const out=await TA.path.join(await TA.path.tempDir(),`ics_background_${Date.now()}.mp4`);$('#assetStatus').textContent=`Creating a ${fmt(duration)} background clip…`;await TA.core.invoke('make_background_video',{image:imagePath,audio:S.aud.track,duration,width:LW,height:LH,out});const ok=await loadPath(out);if(!ok)throw new Error('The generated background clip could not be opened.');fgImg=await assetImage(imageAsset);S.fg.mode='image';S.aud.track=await (audio?assetPath(audio):S.aud.track);syncBinds();inv();$('#assetStatus').textContent=`Ready: ${imageAsset.name} with ${S.aud.trackName||'selected audio'} (${fmt(duration)}). Generate subtitles or translate as usual.`;toast('Background timeline ready')}
+async function createTimedBackground(imageAsset){if(!TA?.core)throw new Error('Creating an audio-length background requires the desktop app.');if(!S.aud.track)throw new Error('Add an audio file first, then create the timed background.');const imagePath=await assetPath(imageAsset),audio=assetLibrary.find(a=>a.path===S.aud.track),duration=await transcriptionDuration();if(!duration||!Number.isFinite(duration))throw new Error('Could not determine the selected audio duration. Re-add the audio file and try again.');const out=await TA.path.join(await TA.path.tempDir(),`ics_background_${Date.now()}.mp4`);$('#assetStatus').textContent=`Creating a ${fmt(duration)} background clip…`;await TA.core.invoke('make_background_video',{image:imagePath,audio:S.aud.track,duration,width:LW,height:LH,out});const ok=await loadPath(out);if(!ok)throw new Error('The generated background clip could not be opened.');fgImg=await assetImage(imageAsset);S.fg.mode='image';S.fg.assetPath=imagePath;S.aud.track=await (audio?assetPath(audio):S.aud.track);syncBinds();inv();$('#assetStatus').textContent=`Ready: ${imageAsset.name} with ${S.aud.trackName||'selected audio'} (${fmt(duration)}). Generate subtitles or translate as usual.`;toast('Background timeline ready')}
 async function ensureMediaNode(o){if(mediaNodes.has(o.id))return mediaNodes.get(o.id);let a=assetLibrary.find(x=>x.path===o.path);if(!a){a={id:o.id,name:o.name,type:o.type,path:o.path,duration:0,file:null,img:null,url:null};assetLibrary.push(a);saveAssets()}const f=await assetFile(a),url=URL.createObjectURL(f);if(o.type==='image'){const el=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=()=>reject(new Error('Could not load overlay image: '+o.name));i.src=url});const rec={el,url};mediaNodes.set(o.id,rec);return rec}const el=document.createElement('video');el.preload='auto';el.muted=true;el.playsInline=true;el.loop=false;el.src=url;el.load();await new Promise((resolve,reject)=>{if(el.readyState>=1)return resolve();el.onloadedmetadata=()=>resolve();el.onerror=()=>reject(new Error('Could not load overlay video: '+o.name))});const rec={el,url};mediaNodes.set(o.id,rec);return rec}
 async function addMediaOverlay(a){if(!V.src||!S.file)throw new Error('Open a video first, or create a timed background from an audio file and image.');const path=await assetPath(a),id=Date.now()+Math.floor(Math.random()*1000),o={id,name:a.name,type:a.type,path,start:0,end:Math.max(.1,Math.min(dur||S.trimE||30,a.type==='video'&&a.duration>0?a.duration:(dur||S.trimE||30))),x:50,y:50,w:30,h:30,opacity:100,fit:'contain'};S.mediaOverlays=S.mediaOverlays||[];S.mediaOverlays.push(o);try{await ensureMediaNode(o)}catch(err){S.mediaOverlays=S.mediaOverlays.filter(x=>x.id!==id);throw err}renderAssets();inv();$('#assetStatus').textContent=`Added ${a.name} as a timed overlay. Adjust its time and position below.`;toast('Overlay added')}
 $('#assetOverlayList').addEventListener('change',e=>{const el=e.target.closest('[data-oa]');if(!el)return;const row=el.closest('[data-oid]'),o=(S.mediaOverlays||[]).find(x=>x.id===Number(row?.dataset.oid));if(!o)return;const key=el.dataset.oa,v=Number(el.value);if(!Number.isFinite(v))return;o[key]=v;if(key==='start'&&o.end<=v)o.end=v+.1;if(key==='end'&&v<=o.start)o.end=o.start+.1;inv()});
@@ -746,13 +742,15 @@ $('#assetOverlayList').addEventListener('click',e=>{const b=e.target.closest('[d
 $('#assetAddImage').onclick=()=>addAssetDialog('image').catch(e=>$('#assetStatus').textContent='❌ '+e.message);
 $('#assetAddVideo').onclick=()=>addAssetDialog('video').catch(e=>$('#assetStatus').textContent='❌ '+e.message);
 $('#assetAddAudio').onclick=()=>addAssetDialog('audio').catch(e=>$('#assetStatus').textContent='❌ '+e.message);
-$('#assetUseVideoAudio').onclick=()=>{S.aud.track='';S.aud.trackName='';try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}renderAssets();$('#assetStatus').textContent='Subtitles/export will use the current video’s audio.'};
+$('#assetUseVideoAudio').onclick=()=>{S.aud.track='';S.aud.trackName='';audioDuration=0;A.pause();A.removeAttribute('src');A.load();if(activeAudioUrl)try{URL.revokeObjectURL(activeAudioUrl)}catch{}activeAudioUrl=null;V.muted=false;try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}renderAssets();tl();$('#assetStatus').textContent='Using the current video’s original audio.'};
 $('#assetRefresh').onclick=renderAssets;
 $('#fa-image').onchange=e=>{const f=e.target.files?.[0];if(f)addAssetFile(f,'image').catch(err=>$('#assetStatus').textContent='❌ '+err.message);e.target.value=''};
 $('#fa-video').onchange=e=>{const f=e.target.files?.[0];if(f)addAssetFile(f,'video').catch(err=>$('#assetStatus').textContent='❌ '+err.message);e.target.value=''};
 $('#fa-audio').onchange=e=>{const f=e.target.files?.[0];if(f)addAssetFile(f,'audio').catch(err=>$('#assetStatus').textContent='❌ '+err.message);e.target.value=''};
-$('#assetList').onclick=async e=>{const b=e.target.closest('button[data-aa]');if(!b)return;const wrap=b.closest('[data-asset]'),id=Number(wrap?.dataset.asset),a=assetLibrary.find(x=>x.id===id);if(!a)return;const act=b.dataset.aa;b.disabled=true;try{if(act==='remove'){assetLibrary=assetLibrary.filter(x=>x.id!==a.id);for(const o of [...(S.mediaOverlays||[])])if(o.path===a.path){const rec=mediaNodes.get(o.id);if(rec){try{if(rec.el.tagName==='VIDEO')rec.el.pause();rec.el.src='';if(rec.url)URL.revokeObjectURL(rec.url)}catch{}mediaNodes.delete(o.id)}}S.mediaOverlays=(S.mediaOverlays||[]).filter(o=>o.path!==a.path);if(S.aud.track===a.path){S.aud.track='';S.aud.trackName='';try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}}saveAssets();renderAssets();$('#assetStatus').textContent='Asset removed.';return}if(act==='audio'){await activateAudioAsset(a)}else if(act==='video'){const path=await assetPath(a);const ok=await loadPath(path);if(ok){S.fg.mode='video';inv();$('#assetStatus').textContent=`Using ${a.name} as the video source.`}}else if(act==='image'){const im=await assetImage(a);if(V.src&&S.file){fgImg=im;S.fg.mode='image';inv();$('#assetStatus').textContent=`Using ${a.name} in the frame. The current video determines the timeline.`}else if(S.aud.track){await createTimedBackground(a)}else throw new Error('Open a video first, or add an MP3/audio file and choose “Create timed background”.')}else if(act==='overlay'){await addMediaOverlay(a)}else if(act==='background'){await createTimedBackground(a)}}catch(err){$('#assetStatus').textContent='❌ '+String(err?.message||err)}finally{b.disabled=false}};
+$('#assetList').onclick=async e=>{const b=e.target.closest('button[data-aa]');if(!b)return;const wrap=b.closest('[data-asset]'),id=Number(wrap?.dataset.asset),a=assetLibrary.find(x=>x.id===id);if(!a)return;const act=b.dataset.aa;b.disabled=true;try{if(act==='remove'){assetLibrary=assetLibrary.filter(x=>x.id!==a.id);for(const o of [...(S.mediaOverlays||[])])if(o.path===a.path){const rec=mediaNodes.get(o.id);if(rec){try{if(rec.el.tagName==='VIDEO')rec.el.pause();rec.el.src='';if(rec.url)URL.revokeObjectURL(rec.url)}catch{}mediaNodes.delete(o.id)}}S.mediaOverlays=(S.mediaOverlays||[]).filter(o=>o.path!==a.path);if(S.aud.track===a.path){S.aud.track='';S.aud.trackName='';audioDuration=0;A.pause();A.removeAttribute('src');A.load();if(activeAudioUrl)try{URL.revokeObjectURL(activeAudioUrl)}catch{}activeAudioUrl=null;try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}}saveAssets();renderAssets();$('#assetStatus').textContent='Asset removed.';return}if(act==='audio'){await activateAudioAsset(a)}else if(act==='video'){const path=await assetPath(a);const ok=await loadPath(path);if(ok){S.fg.mode='video';V.muted=!!S.aud.track;inv();$('#assetStatus').textContent=`Using ${a.name} as the video source${S.aud.track?' with '+(S.aud.trackName||'external audio'):''}. Press Play to preview.`}}else if(act==='image'){const im=await assetImage(a);if(V.src&&S.file){fgImg=im;S.fg.mode='image';S.fg.assetPath=await assetPath(a);inv();$('#assetStatus').textContent=`Using ${a.name} in the frame. The current video determines the timeline.`}else if(S.aud.track){await createTimedBackground(a)}else throw new Error('Open a video first, or add an MP3/audio file and choose “Create timed background”.')}else if(act==='overlay'){await addMediaOverlay(a)}else if(act==='background'){await createTimedBackground(a)}}catch(err){$('#assetStatus').textContent='❌ '+String(err?.message||err)}finally{b.disabled=false}};
 renderAssets();
+// Restore the last selected external soundtrack on app startup when its saved path still exists.
+if(S.aud.track){const savedAudio=assetLibrary.find(a=>a.path===S.aud.track);if(savedAudio)activateAudioAsset(savedAudio).catch(err=>{const st=$('#assetStatus');if(st)st.textContent='Saved audio needs to be relinked: '+(err?.message||err)})}
 async function projDir(){const T=window.__TAURI__;if(S.dir)return S.dir;const d=new Date(),ts=`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}_${p2(d.getHours())}-${p2(d.getMinutes())}-${p2(d.getSeconds())}`;S.dir=await T.path.join(await T.path.documentDir(),'Insta Clip Studio','Projects','Project_'+ts);return S.dir}
 const seekTo=t=>new Promise(r=>{if(Math.abs(V.currentTime-t)<.001)return r();V.addEventListener('seeked',r,{once:true});V.currentTime=t});
 async function makeThumb(){const was=V.paused;V.pause();const osc=sc;sc=1;setAspect();exporting=true;S.sample=1;let best=null,bs=-1;
@@ -774,40 +772,47 @@ $('#cpsave').onclick=()=>saveBlob(new Blob([$('#cpout').value||buildCaption()],{
 /* ---------- audio options ---------- */
 $('#preb').onclick=async()=>{const T=window.__TAURI__;if(!T?.dialog)return toast('Desktop app only');const p=await T.dialog.open({filters:[{name:'Audio',extensions:['wav','mp3','m4a','flac','aac']}]});if(p){S.aud.pre=p;$('#prest').textContent='Using '+p.split(/[\\/]/).pop()}};
 $('#prex').onclick=()=>{S.aud.pre='';$('#prest').textContent=''};
-/* ---------- whisper (options from the original retry loop) ---------- */
-TA?.event?.listen('model-log',e=>{$('#asrst').textContent='Downloading model… '+e.payload+'%';$('#asrbar i').style.width=e.payload+'%'});
-function mergeSentenceSubtitles(items){const out=[],ends=/[.!?؟۔…:;؛।]$/;for(const raw of (items||[])){const cur={...raw,t:String(raw.t||'').trim()};if(!cur.t)continue;if(!out.length){out.push(cur);continue}const prev=out[out.length-1],gap=Math.max(0,(+cur.s||0)-(+prev.e||0)),words=(prev.t+' '+cur.t).trim().split(/\s+/);if(ends.test(prev.t)||gap>=.85||words.length>42||(+cur.e-(+prev.s))>9){out.push(cur)}else{prev.t=(prev.t+' '+cur.t).replace(/\s+/g,' ').trim();prev.e=cur.e;if(prev.words&&cur.words)prev.words.push(...cur.words)}}return out}
-$('#asrgo').onclick=async()=>{
- if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file&&!S.aud.track)return toast('Add an audio asset or open a video first');
- const b=$('#asrgo');b.disabled=true;$('#asrbar i').style.width='0';
- try{$('#asrst').textContent='Preparing…';const input=await transcriptionPath(),model=$('#asrmodel').value;
-  await TA.core.invoke('get_model',{model});$('#asrbar i').style.width='0';$('#asrst').textContent='Extracting audio…';
-  const out=await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen:+$('#asrml').value||0,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,durationHint:await transcriptionDuration()});
-  S.subs=mergeSentenceSubtitles(parseSRT(out).sort((x,y)=>x.s-y.s));lists();$('#asrbar i').style.width='100%';$('#asrst').textContent=S.subs.length+' subtitles created. Wrong words? Edit them, or change language / hint / model and generate again.';snap()}
- catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
 /* ---------- project save / load / undo (all keys) ---------- */
 const PK=['subs','st','fr','fx','aspect','trimS','trimE','vol','mode','fg','mediaOverlays','gr','spk','wm','hd','du','grain','themes','theme','shift','cam','shots','ex','aud'];
 const projJ=()=>({...Object.fromEntries(PK.map(k=>[k,S[k]])),texts:S.texts.map(({box,...r})=>r)});
+function syncDualControls(){if(!$('#dualOn'))return;$('#dualOn').checked=!!S.du.on;$('#dualStyle').value=S.du.style||'classic';$('#dualSize').value=S.du.size||58;$('#dualTransSize').value=S.du.transSize||32;$('#dualSourceY').value=S.du.sourceY??44;$('#dualTransY').value=S.du.transY??56;$('#dualSourceX').value=S.du.sourceX??50;$('#dualTransX').value=S.du.transX??50;$('#dualMoveSource')?.classList.toggle('pri',S.du.dragTarget!=='translation');$('#dualMoveTranslation')?.classList.toggle('pri',S.du.dragTarget==='translation')}
 function projLoad(o){for(const k of PK)if(o[k]!==undefined)S[k]=JSON.parse(JSON.stringify(o[k]));S.texts=JSON.parse(JSON.stringify(o.texts||[]));
  S.fr={...FR0,...S.fr};S.st={...ST0,...S.st};S.fx={...FX0,...S.fx};S.gr={...GR0,...S.gr};S.spk={...SPK0,...S.spk};S.wm={...WM0,...S.wm};S.hd={...HD0,...S.hd};S.du={...DU0,...S.du};S.ex={...EX0,...S.ex};S.aud={...AUD0,...S.aud};S.fg={mode:'video',kb:1,kbz:10,...S.fg};S.mediaOverlays=S.mediaOverlays||[];S.mediaOverlays.forEach(o=>ensureMediaNode(o).catch(err=>console.warn('Could not restore media overlay',err)));renderAssets();
- if(!S.shots||!S.shots.length)S.shots=[{t:0,px:0,py:0,zoom:100}];S.shotIdx=-1;uid=1+Math.max(0,...S.subs.map(x=>x.id),...S.texts.map(x=>x.id));$('#asp').value=S.aspect;setAspect();syncBinds();renderThemes();renderShots();lists();inv()}
+ if(!S.shots||!S.shots.length)S.shots=[{t:0,px:0,py:0,zoom:100}];S.shotIdx=-1;uid=1+Math.max(0,...S.subs.map(x=>x.id),...S.texts.map(x=>x.id));$('#asp').value=S.aspect;setAspect();syncBinds();syncDualControls();renderThemes();renderShots();lists();inv()}
 const PROJECTS_KEY='icsProjectLibraryV1';let activeProjectId=null,homeWasOpen=false;
 function projectLibrary(){try{const x=JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return[]}}
 function projectStore(){const name=($('#projectName')?.value||'').trim()||S.meta?.title||S.file?.name?.replace(/\.[^.]+$/,'')||'Untitled project';const lib=projectLibrary();const id=activeProjectId||('p_'+Date.now());const rec={id,name,updated:Date.now(),sourcePath:S.path||null,sourceName:S.file?.name||S.meta?.title||'',assets:assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration})),state:projJ()};const ix=lib.findIndex(x=>x.id===id);if(ix>=0)lib[ix]=rec;else lib.unshift(rec);try{localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib));activeProjectId=id;$('#projectName').value=name;renderProjectCards();toast('Saved project: '+name)}catch(e){toast('Project could not be saved: browser storage is full. Export a project JSON backup.')}return rec}
 function renderProjectCards(){const root=$('#projectCards');if(!root)return;const lib=projectLibrary();root.innerHTML=lib.map(p=>`<div class="row" style="min-height:150px"><b>${esc(p.name||'Untitled project')}</b><div class="hint">${p.state?.subs?.length||0} subtitles · Updated ${new Date(p.updated||Date.now()).toLocaleString()}${p.sourceName?' · '+esc(p.sourceName):''}</div><div class="bar"><button data-proj-open="${p.id}" class="pri">Open project</button><button data-proj-save="${p.id}">Update from current</button><button data-proj-del="${p.id}">Delete</button></div></div>`).join('')||'<div class="hint">No saved projects yet. Start editing, then choose Save current project.</div>'}
-function showProjectHome(){homeWasOpen=true;$('#projectHome').style.display='block';renderProjectCards()}
+function showProjectHome(){if(exporting){toast('Wait for export to finish before switching projects.');return}homeWasOpen=true;$('#projectHome').style.display='block';renderProjectCards()}
 function hideProjectHome(){homeWasOpen=false;$('#projectHome').style.display='none'}
-$('#projects').onclick=showProjectHome;$('#homeBack').onclick=hideProjectHome;$('#homeSave').onclick=()=>projectStore();$('#homeNew').onclick=()=>{if(S.subs.length||S.file||S.texts.length){if(!confirm('Start a new project? Save the current project first if you want to keep it.'))return}activeProjectId=null;S.subs=[];S.texts=[];S.mediaOverlays=[];S.meta={};$('#projectName').value='';lists();inv();hideProjectHome();toast('New project ready — add media in Assets')};
-$('#projectCards').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const lib=projectLibrary(),p=lib.find(x=>x.id===b.dataset.projOpen||x.id===b.dataset.projSave||x.id===b.dataset.projDel);if(!p)return;if(b.dataset.projDel){if(confirm('Delete saved project “'+p.name+'”?')){localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib.filter(x=>x.id!==p.id)));renderProjectCards()}return}if(b.dataset.projSave){activeProjectId=p.id;$('#projectName').value=p.name;projectStore();return}if(b.dataset.projOpen){activeProjectId=p.id;$('#projectName').value=p.name;projLoad(p.state||{});assetLibrary=Array.isArray(p.assets)?p.assets.map(a=>({...a,file:null,img:null,url:null})):assetLibrary;saveAssets();renderAssets();hideProjectHome();if(p.sourcePath){toast('Project restored. Re-open/relink source media if it is not already loaded.')}else toast('Project restored');}});
+$('#projects').onclick=showProjectHome;$('#homeBack').onclick=hideProjectHome;$('#homeSave').onclick=()=>projectStore();
+function resetProjectState(){
+ try{V.pause();V.removeAttribute('src');V.load();A.pause();A.removeAttribute('src');A.load();if(videoObjectUrl)URL.revokeObjectURL(videoObjectUrl);if(activeAudioUrl)URL.revokeObjectURL(activeAudioUrl)}catch{}
+ for(const rec of mediaNodes.values()){try{if(rec.el?.tagName==='VIDEO'){rec.el.pause();rec.el.removeAttribute('src');rec.el.load()}if(rec.url)URL.revokeObjectURL(rec.url)}catch{}}mediaNodes.clear();
+ assetLibrary=[];saveAssets();S.mode='studio';S.fr={...FR0};S.fg={mode:'video',kb:1,kbz:10};S.gr={...GR0};S.spk={...SPK0};S.wm={...WM0};S.hd={...HD0};S.du={...DU0,transSize:32,style:'classic'};S.ex={...EX0};S.aud={...AUD0};S.grain=6;S.themes=[];S.theme=0;S.shift=0;S.cam='auto';S.shots=[{t:0,px:0,py:0,zoom:100}];S.shotIdx=-1;S.card={...CARD0};S.dm='video';S.guides=0;S.hov=0;S.sample=0;S.path=null;S.file=null;S.meta={};S.subs=[];S.texts=[];S.mediaOverlays=[];S.sel=null;S.aspect='9:16';S.trimS=0;S.trimE=0;S.vol=100;S.st={...ST0};S.fx={...FX0};dur=0;audioDuration=0;fgImg=null;ovlImg=null;ovlC=null;activeProjectId=null;S.dir=null;S.aud.track='';S.aud.trackName='';try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}
+ $('#projectName').value='';$('#asp').value=S.aspect;$('#tm').textContent='0:00.0 / 0:00.0';$('#assetStatus').textContent='';$('#asrst').textContent='';syncBinds();renderAssets();renderThemes();renderShots();lists();tl();setAspect();inv();
+}
+$('#homeNew').onclick=()=>{if(exporting)return toast('Wait for export to finish before starting another project.');if((S.subs.length||S.file||S.texts.length||assetLibrary.length)&&!confirm('Start a completely new project? Save the current project first if you want to keep it.'))return;resetProjectState();hideProjectHome();toast('New project ready — add media in Assets')};
+$('#projectCards').addEventListener('click',async e=>{if(exporting){toast('Wait for export to finish before switching projects.');return}const b=e.target.closest('button');if(!b)return;const lib=projectLibrary(),p=lib.find(x=>x.id===b.dataset.projOpen||x.id===b.dataset.projSave||x.id===b.dataset.projDel);if(!p)return;if(b.dataset.projDel){if(confirm('Delete saved project “'+p.name+'”?')){localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib.filter(x=>x.id!==p.id)));renderProjectCards()}return}if(b.dataset.projSave){activeProjectId=p.id;$('#projectName').value=p.name;projectStore();return}if(b.dataset.projOpen){
+  try{resetProjectState();assetLibrary=Array.isArray(p.assets)?p.assets.map(a=>({...a,file:null,img:null,url:null})):[];saveAssets();activeProjectId=p.id;$('#projectName').value=p.name||'';let mediaWarning='';
+   // Restore the source media first so duration/trim values are clamped against real metadata.
+   if(p.sourcePath&&TA?.core){try{const ok=await loadPath(p.sourcePath);if(!ok)mediaWarning='Source video could not be reopened; relink it from Assets.'}catch{mediaWarning='Source video path is unavailable; relink it from Assets.'}}
+   projLoad(p.state||{});if(dur>0){S.trimS=cl(Number(S.trimS)||0,0,Math.max(0,dur-.1));S.trimE=cl(Number(S.trimE)||dur,S.trimS+.1,dur)}if(S.fg.mode==='image'&&S.fg.assetPath){const bg=assetLibrary.find(a=>a.path===S.fg.assetPath);if(bg)try{fgImg=await assetImage(bg)}catch{mediaWarning='A background image needs to be relinked.'}}
+   if(S.aud.track&&TA?.core){let aa=assetLibrary.find(a=>a.path===S.aud.track);if(!aa){const n=S.aud.track.split(/[\\/]/).pop();aa={id:Date.now(),name:S.aud.trackName||n,type:'audio',path:S.aud.track,duration:0,file:null,img:null,url:null};assetLibrary.unshift(aa)}await activateAudioAsset(aa);if(V.src){V.muted=true;try{A.currentTime=Math.min(V.currentTime,A.duration||V.currentTime)}catch{}}}
+   // Rehydrate overlays only after the asset list has been restored.
+   for(const o of S.mediaOverlays||[])await ensureMediaNode(o).catch(err=>console.warn(err));renderAssets();hideProjectHome();toast(mediaWarning||'Project restored. Check any files that have been moved.');
+  }catch(err){toast('Project could not be restored: '+(err?.message||err));renderAssets()}
+ }});
 $('#dualOn').checked=!!S.du.on;$('#dualStyle').value=S.du.style||'classic';$('#dualSize').value=S.du.size||58;$('#dualTransSize').value=S.du.transSize||32;$('#dualSourceY').value=S.du.sourceY??44;$('#dualTransY').value=S.du.transY??56;$('#dualSourceX').value=S.du.sourceX??50;$('#dualTransX').value=S.du.transX??50;
 $('#dualOn').onchange=e=>{S.du.on=e.target.checked;inv();snap()};$('#dualStyle').onchange=e=>{S.du.style=e.target.value;inv();snap()};$('#dualSize').oninput=e=>{S.du.size=+e.target.value;inv()};$('#dualTransSize').oninput=e=>{S.du.transSize=+e.target.value;inv()};
+S.du.dragTarget='source';$('#dualMoveSource').onclick=()=>{S.du.dragTarget='source';$('#dualMoveSource').classList.add('pri');$('#dualMoveTranslation').classList.remove('pri');toast('Drag the source-language subtitle on the preview')};$('#dualMoveTranslation').onclick=()=>{S.du.dragTarget='translation';$('#dualMoveTranslation').classList.add('pri');$('#dualMoveSource').classList.remove('pri');toast('Drag the English translation on the preview')};$('#dualSourceY').oninput=e=>{S.du.sourceY=+e.target.value;inv()};$('#dualTransY').oninput=e=>{S.du.transY=+e.target.value;inv()};$('#dualSourceX').oninput=e=>{S.du.sourceX=+e.target.value;inv()};$('#dualTransX').oninput=e=>{S.du.transX=+e.target.value;inv()};
 // Keep a rolling recovery snapshot for active named projects as the user edits.
-setInterval(()=>{if(activeProjectId){try{const lib=projectLibrary(),i=lib.findIndex(p=>p.id===activeProjectId);if(i>=0){lib[i].state=projJ();lib[i].assets=assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration}));lib[i].updated=Date.now();localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib))}}catch{}}},10000);
+setInterval(()=>{if(activeProjectId){try{const lib=projectLibrary(),i=lib.findIndex(p=>p.id===activeProjectId);if(i>=0){lib[i].state=projJ();lib[i].sourcePath=S.path||null;lib[i].sourceName=S.file?.name||S.meta?.title||'';lib[i].assets=assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration}));lib[i].updated=Date.now();localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib))}}catch{}}},10000);
 $('#savep').onclick=()=>{projectStore();saveBlob(new Blob([JSON.stringify({...projJ(),projectName:$('#projectName').value,sourcePath:S.path,assets:assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration}))},null,1)],{type:'application/json'}),'project.json')};
-$('#fp').onchange=async e=>{try{projLoad(JSON.parse(await e.target.files[0].text()));toast('Project loaded')}catch(err){toast('Invalid project file')}e.target.value=''};
+$('#fp').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());resetProjectState();assetLibrary=Array.isArray(j.assets)?j.assets.map(a=>({...a,file:null,img:null,url:null})):assetLibrary;saveAssets();let mediaWarning='';if(j.sourcePath&&TA?.core){try{const ok=await loadPath(j.sourcePath);if(!ok)mediaWarning='Source video could not be reopened; relink it from Assets.'}catch{mediaWarning='Source video path is unavailable; relink it from Assets.'}}projLoad(j);if(dur>0){S.trimS=cl(Number(S.trimS)||0,0,Math.max(0,dur-.1));S.trimE=cl(Number(S.trimE)||dur,S.trimS+.1,dur)}if(S.fg.mode==='image'&&S.fg.assetPath){const bg=assetLibrary.find(a=>a.path===S.fg.assetPath);if(bg)fgImg=await assetImage(bg)}if(S.aud.track&&TA?.core){let a=assetLibrary.find(x=>x.path===S.aud.track);if(!a){const name=S.aud.track.split(/[\/]/).pop();a={id:Date.now(),name:S.aud.trackName||name,type:'audio',path:S.aud.track,duration:0,file:null,img:null,url:null};assetLibrary.unshift(a)}await activateAudioAsset(a)}renderAssets();toast(mediaWarning||'Project loaded')}catch(err){toast('Project load failed: '+(err?.message||err))}e.target.value=''};
 /* ---------- export: stream desktop render chunks to disk, then FFmpeg muxes audio ---------- */
-function setExportProgress(pct,label){const n=Math.max(0,Math.min(100,Math.round(Number(pct)||0))),bar=$('#exportProgress'),fill=bar?.querySelector('i'),txt=$('#exportProgressText');if(fill)fill.style.width=n+'%';if(bar)bar.setAttribute('aria-valuenow',String(n));if(txt&&label)txt.textContent=label;const mini=$('#prog');if(mini)mini.textContent=(label||'Exporting')+' '+n+'%'}
-TA?.event?.listen('export-log',e=>{const msg=String(e.payload||'');const m=/(?:Encoding video \([^)]*\)…\s*)(\d+)%/.exec(msg);if(m){const ff=Number(m[2]);setExportProgress(45+ff*.54,'FFmpeg encoding · '+ff+'%');return}const m2=/(\d+)%/.exec(msg);if(m2&&/100%/.test(msg)){setExportProgress(100,msg);return}if($('#exportProgressText'))$('#exportProgressText').textContent=msg.slice(0,140);$('#prog').textContent=msg.slice(0,90)});
+function setExportProgress(pct,label){const n=Math.max(0,Math.min(100,Math.round(Number(pct)||0))),bar=$('#exportProgress'),fill=bar?.querySelector('i'),txt=$('#exportProgressText');if(fill)fill.style.width=n+'%';if(bar)bar.setAttribute('aria-valuenow',String(n));if(txt&&label)txt.textContent=label;const cp=$('#coverProgress');if(cp)cp.style.width=n+'%';const cpt=$('#coverProgressText');if(cpt&&label)cpt.textContent=label;const mini=$('#prog');if(mini)mini.textContent=(label||'Exporting')+' '+n+'%'}
+TA?.event?.listen('export-log',e=>{const msg=String(e.payload||'');const m=/(?:Encoding video \([^)]*\)…\s*)(\d+)%/.exec(msg);if(m){const ff=Number(m[2]);setExportProgress(45+ff*.54,'FFmpeg encoding · '+ff+'%');return}const m2=/(\d+)%/.exec(msg);if(m2&&/100%/.test(msg)&&/complete|finished/i.test(msg)){setExportProgress(100,msg);return}if($('#exportProgressText'))$('#exportProgressText').textContent=msg.slice(0,140);$('#prog').textContent=msg.slice(0,90)});
 async function exportAll(){
  if(!V.src||exporting)return toast('Open a video first');
  const T=window.__TAURI__,desk=!!(T?.core&&S.file),oldRate=V.playbackRate;
@@ -815,7 +820,7 @@ async function exportAll(){
  let successful=false;
  try{
   if(!(Number.isFinite(S.trimS)&&Number.isFinite(S.trimE)&&S.trimE>S.trimS))throw new Error('Set a valid clip start and end first.');
-  exporting=true;$('#exp').disabled=$('#exp2').disabled=true;$('#exst').textContent='';setExportProgress(0,'Preparing render…');
+  exporting=true;document.body.classList.add('exporting');$('#exp').disabled=$('#exp2').disabled=true;$('#exst').textContent='';$('#exportCover').style.display='flex';setExportProgress(0,'Preparing render…');
   sc=1;setAspect();S.sample=0;await sleep(80);
   if(desk){const dir=await projDir();vtmp=await T.path.join(dir,'render_video.webm')}
   cs=C.captureStream(30);
@@ -894,7 +899,7 @@ async function exportAll(){
   try{await writeQueue}catch{}
   if(cs)try{cs.getTracks().forEach(t=>t.stop())}catch{}
   if(V&&!V.paused)V.pause();V.playbackRate=oldRate;S.sample=0;exporting=false;sc=PQ;setAspect();
-  $('#exp').disabled=$('#exp2').disabled=false;
+  $('#exp').disabled=$('#exp2').disabled=false;$('#exportCover').style.display='none';document.body.classList.remove('exporting');
   if(successful){$('#prog').textContent='';setExportProgress(100,'Export complete · 100%')}
  }
 }
@@ -942,17 +947,6 @@ function segsToSubs(segs,maxlen){const out=[];
    for(const w of ws){if(len+w.w.length>maxlen&&cur.length)flush();cur.push(w);len+=w.w.length}flush()}
   else out.push({id:uid++,s:g.s,e:g.e,t:g.t,words:ws.map(w=>({w:w.w.trim(),s:w.s,e:w.e}))})}
  return out}
-TA?.event?.listen('whisper-log',e=>{const s=String(e.payload);if(s.startsWith('MODEL '))$('#asrst').textContent='Using '+s.slice(6)});
-function mergeSentenceSubtitles(items){const out=[],ends=/[.!?؟۔…:;؛।]$/;for(const raw of (items||[])){const cur={...raw,t:String(raw.t||'').trim()};if(!cur.t)continue;if(!out.length){out.push(cur);continue}const prev=out[out.length-1],gap=Math.max(0,(+cur.s||0)-(+prev.e||0)),words=(prev.t+' '+cur.t).trim().split(/\s+/);if(ends.test(prev.t)||gap>=.85||words.length>42||(+cur.e-(+prev.s))>9){out.push(cur)}else{prev.t=(prev.t+' '+cur.t).replace(/\s+/g,' ').trim();prev.e=cur.e;if(prev.words&&cur.words)prev.words.push(...cur.words)}}return out}
-$('#asrgo').onclick=async()=>{
- if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file&&!S.aud.track)return toast('Add an audio asset or open a video first');
- const b=$('#asrgo');b.disabled=true;$('#asrbar i').style.width='0';
- try{$('#asrst').textContent='Preparing…';const input=await transcriptionPath(),model=$('#asrmodel').value,maxlen=+$('#asrml').value||0;
-  $('#asrst').textContent='Extracting audio…';
-  const out=JSON.parse(await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,engine:$('#asreng').value,durationHint:await transcriptionDuration()}));
-  S.subs=(out.segments?segsToSubs(out.segments,maxlen):parseSRT(out.srt)).sort((x,y)=>x.s-y.s);lists();$('#asrbar i').style.width='100%';
-  $('#asrst').textContent=S.subs.length+' subtitles created'+(out.segments?' (word timings kept — turn on Word highlight in Default style)':'')+'. Edit anything below, or change settings and generate again.';snap()}
- catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
 /* ---------- text size, find & replace ---------- */
 const scaleAll=k=>{S.st.size=Math.round(cl(S.st.size*k,20,200));S.subs.forEach(o=>{if(o.st&&o.st.size!==undefined)o.st.size=Math.round(cl(o.st.size*k,10,300))});syncBinds();lists();inv();snap()};
 $('#szp').onclick=()=>scaleAll(1.06);$('#szm').onclick=()=>scaleAll(1/1.06);
@@ -991,7 +985,7 @@ $('#asrgo').onclick=async()=>{
  try{$('#asrst').textContent='Preparing…';const input=await transcriptionPath(),lang=$('#asrlang').value,eng=asrRoute(),model=$('#asrcustom').value.trim()||$('#asrmodel').value,maxlen=+$('#asrml').value||0;
   $('#asrst').textContent='Extracting audio…';
   const out=JSON.parse(await TA.core.invoke('transcribe',{input,lang,maxlen,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,engine:eng,durationHint:await transcriptionDuration()}));
-  S.subs=(out.segments?segsToSubs(out.segments,maxlen||(out.engine==='cohere'?42:0)):parseSRT(out.srt)).sort((x,y)=>x.s-y.s);lists();$('#asrbar i').style.width='100%';
+  S.subs=mergeSentenceSubtitles((out.segments?segsToSubs(out.segments,maxlen||(out.engine==='cohere'?42:0)):parseSRT(out.srt)).sort((x,y)=>x.s-y.s));lists();$('#asrbar i').style.width='100%';
   $('#asrst').textContent=S.subs.length+' subtitles created'+(out.engine==='cohere'?' with Cohere Transcribe':'')+'. Edit anything below, or change settings and generate again.';snap()}
  catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
 $('#gotr').onclick=()=>view('tr');

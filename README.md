@@ -1,41 +1,24 @@
-# Insta Clip Studio
-Download (yt-dlp) -> Edit (assets, overlays, studio card / simple crop, themes, camera, banner) -> Subtitles (faster-whisper, Cohere, AI translate) -> Export (FFmpeg).
+# Insta Clip Studio v1.1.0
 
-## Get the .exe (pick one)
-**A. GitHub builds it for you**
-1. Create a GitHub repo and upload this whole folder (keep the `.github` folder).
-2. **Actions** tab -> "Build Windows installer" -> **Run workflow**.
-3. Download **Insta-Clip-Studio-Setup** from the finished run, unzip, run the .exe.
+A Windows desktop video editor for short-form clips, lectures, recitations, poems, and qasidas. Includes subtitle generation and translation, dual subtitle styling, image/video/audio assets, and MP4 export.
 
-**B. Build on your own PC:** double-click `Build-Windows.bat`.
+## Build the Windows installer
 
-## First launch = automatic setup
-The installer is small. On first launch the **Setup** tab scans your PC and uses what you already have:
-Python, faster-whisper (+ your cached large-v3 / distil-large-v3 / medium models), Demucs, yt-dlp, FFmpeg
-(it even finds the FFmpeg that moviepy ships). Only what is missing is downloaded/installed
-(yt-dlp, FFmpeg and whisper.cpp go to `%LOCALAPPDATA%\InstaClipStudio\tools`).
-Custom locations can be set in the Setup tab.
+1. Install Node.js 20+ and the Rust stable toolchain.
+2. Run `npm install`.
+3. Run `npx tauri icon app-icon.png`.
+4. Run `npm run tauri build`.
+5. Find the installer under `src-tauri/target/release/bundle/nsis/`.
 
-Exports are saved to `Documents\Insta Clip Studio\Projects\Project_<date>`.
-To update: re-upload changed files to the repo (same names overwrite) and run the workflow again.
+Or use **GitHub → Actions → Build Windows installer → Run workflow**.
 
-## Models by language
-- **Urdu**: Whisper large-v3 (faster-whisper). Cohere Transcribe has no Urdu.
-- **Arabic**: Cohere Transcribe Arabic (July 2026) if set up, else Whisper.
-- **English**: Cohere Transcribe if set up, else Whisper.
-Cohere models are gated: add a free Hugging Face token in Setup and accept the terms on both model pages.
-Cohere models give no timestamps, so subtitle timing comes from voice-activity detection.
+## Project and media notes
 
-## Translate tab
-Gemini (or OpenAI / Claude / Groq / OpenRouter / Ollama). Lines are sent with their on-screen duration; results are cached.
+- Project-library records are stored locally in the app's WebView storage.
+- Project state stores references to source media and imported assets; it does not embed original media files. If a file is moved, re-add/relink it.
+- External audio is used for subtitle generation and can be selected as the final soundtrack.
+- The dual subtitle layout offers Classic and Parchment / Poem-Qasida styling. Source and translation positions can be adjusted separately.
 
+## Export architecture status
 
-## Cohere Transcribe troubleshooting
-
-If Cohere fails, the Transcribe status now shows Python's recent diagnostic output instead of only a generic exit-code message. For gated-model errors, log in to Hugging Face, accept the conditions on the model page for the selected language, create a Read token from that same account, save it in Setup, and retry. For low-VRAM errors, close GPU-heavy applications and retry; the runner uses smaller batches on GPUs with less than 8 GB VRAM.
-
-## Assets and audio-only lecture workflow
-
-Use the **Assets** tab to add images, videos, and audio files including MP3. An audio asset can be used directly as the transcription source and selected export soundtrack. To make a visual timeline for an audio-only lecture, add the MP3, add a background image, and choose **Create timed background**. Then generate subtitles, translate them, keep your usual styles, and export. Imported images/videos can also be placed as timed overlays.
-
-Audio extraction reports FFmpeg progress in the subtitle status area rather than displaying only a static “Extracting audio…” message.
+The renderer preserves the custom canvas composition and then uses FFmpeg for audio processing and MP4 encoding. The current pipeline still uses canvas/MediaRecorder capture; it is not yet a fully detached FFmpeg-only render job, and project switching is disabled while export is active. See `PATCH_NOTES.md` for the exact validation status.

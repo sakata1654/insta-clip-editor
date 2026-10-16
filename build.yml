@@ -31,6 +31,22 @@ jobs:
           Write-Host 'Layout OK'
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate frontend and helper scripts
+        shell: pwsh
+        run: |
+          $html = Get-Content 'src/index.html' -Raw
+          $match = [regex]::Match($html, '(?is)<script(?:\s[^>]*)?>(.*?)</script>')
+          if (-not $match.Success) { throw 'No inline JavaScript block found in src/index.html' }
+          $js = Join-Path $env:TEMP 'ics-inline-check.js'
+          Set-Content -Path $js -Value $match.Groups[1].Value -NoNewline
+          node --check $js
+          python -m py_compile src-tauri/whisper_run.py src-tauri/cohere_run.py src-tauri/env_check.py
+          Get-Content 'package.json' -Raw | ConvertFrom-Json | Out-Null
+          Get-Content 'src-tauri/tauri.conf.json' -Raw | ConvertFrom-Json | Out-Null
+          Get-Content 'src-tauri/capabilities/default.json' -Raw | ConvertFrom-Json | Out-Null
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with: { workspaces: src-tauri }
