@@ -106,56 +106,74 @@ def main():
 
     lang = a['lang']
     out = []
-    # Process a few timestamped VAD regions per call. The model's native transcribe
-    # implementation handles its own efficient inference/batching; the VAD boundaries
-    # remain the timestamps used by the subtitle editor.
-    group_size = max(batch_size, batch_size * 4)
+    # Accuracy-first inference: use the documented Transformers processor + generate
+    # path. Do not call an assumed model.transcribe() method; it is not the documented
+    # API for CohereAsrForConditionalGeneration and can behave differently across versions.
+    # Batch only within the detected VRAM budget. Keep the audio_chunk_index returned by
+    # the processor so any internal feature-extractor chunks are reassembled correctly.
+    batch_size = max(1, batch_size)
     inference_started = time.perf_counter()
     inference_seconds = 0.0
-    optimized = callable(getattr(model, 'transcribe', None))
-    for i in range(0, len(segs), group_size):
-        part = segs[i:i + group_size]
+    max_new_tokens = 512
+    for i in range(0, len(segs), batch_size):
+        part = segs[i:i + batch_size]
         chunks = [audio[max(0, int(s * sr)):min(len(audio), int(e * sr))] for s, e in part]
+        # Do not feed empty/near-empty arrays to the processor.
+        valid = [(se, c) for se, c in zip(part, chunks) if len(c) >= int(0.10 * sr)]
+        if not valid:
+            continue
+        valid_part = [x[0] for x in valid]
+        valid_chunks = [x[1] for x in valid]
         t0 = time.perf_counter()
-        texts = None
-        if optimized:
-            try:
-                # Native implementation avoids our old per-segment generate loop.
-                texts = model.transcribe(
-                    processor=processor,
-                    audio_arrays=chunks,
-                    sample_rates=[sr] * len(chunks),
-                    language=lang,
-                    batch_size=batch_size,
-                )
-                if not isinstance(texts, (list, tuple)) or len(texts) != len(chunks):
-                    texts = None
-            except (TypeError, AttributeError, NotImplementedError) as e:
-                log(f'Native transcribe API unavailable ({type(e).__name__}); using compatible generation path')
-                optimized = False
-            except Exception as e:
-                # Fall back only for this group; do not rerun previously completed groups.
-                log(f'Native transcribe group failed ({type(e).__name__}: {e}); retrying this group with generate()')
-                texts = None
-        if texts is None:
-            texts = []
-            for c in chunks:
-                inputs = processor(c, sampling_rate=sr, return_tensors='pt', language=lang)
-                inputs.to(model.device, dtype=model.dtype)
-                with torch.inference_mode():
-                    res = model.generate(**inputs, max_new_tokens=256)
-                texts.append(processor.decode(res, skip_special_tokens=True, language=lang))
+        try:
+            inputs = processor(valid_chunks, sampling_rate=sr, return_tensors='pt', language=lang)
+            audio_chunk_index = inputs.get('audio_chunk_index')
+            inputs.to(model.device, dtype=model.dtype)
+            with torch.inference_mode():
+                generated = model.generate(**inputs, max_new_tokens=max_new_tokens)
+            # The processor's documented decoder uses audio_chunk_index for internally
+            # chunked audio. Passing it is harmless when no internal chunking was needed.
+            decoded = processor.decode(
+                generated,
+                skip_special_tokens=True,
+                audio_chunk_index=audio_chunk_index,
+                language=lang,
+            )
+            if isinstance(decoded, str):
+                texts = [decoded] if len(valid_chunks) == 1 else [decoded]
+            elif isinstance(decoded, (list, tuple)):
+                texts = list(decoded)
+            else:
+                texts = [str(decoded)]
+            if len(texts) != len(valid_chunks):
+                # Avoid silently assigning a combined transcript to the wrong timestamps.
+                # Retry individually through the same documented path.
+                log(f'Batch decoder returned {len(texts)} result(s) for {len(valid_chunks)} segment(s); retrying individually')
+                texts = []
+                for c in valid_chunks:
+                    one = processor(c, sampling_rate=sr, return_tensors='pt', language=lang)
+                    one_chunk_index = one.get('audio_chunk_index')
+                    one.to(model.device, dtype=model.dtype)
+                    with torch.inference_mode():
+                        one_generated = model.generate(**one, max_new_tokens=max_new_tokens)
+                    one_decoded = processor.decode(
+                        one_generated,
+                        skip_special_tokens=True,
+                        audio_chunk_index=one_chunk_index,
+                        language=lang,
+                    )
+                    texts.append(one_decoded[0] if isinstance(one_decoded, (list, tuple)) else one_decoded)
+        except Exception as e:
+            raise RuntimeError(f'Cohere inference failed for segments {i + 1}-{i + len(valid_chunks)}: {type(e).__name__}: {e}') from e
+
         inference_seconds += time.perf_counter() - t0
-        for (s, e), text in zip(part, texts):
+        for (s, e), text in zip(valid_part, texts):
             text = clean_text(text)
             if text:
                 out.append({'s': s, 'e': e, 't': text})
         pct = min(99, int((i + len(part)) / len(segs) * 100))
-        elapsed = time.perf_counter() - inference_started
-        completed = i + len(part)
         log(f'progress = {pct}%')
-        log(f"COHERE_METRICS completed_segments={completed}/{len(segs)} group_seconds={time.perf_counter()-t0:.1f} inference_elapsed={elapsed:.1f}s")
-
+        log(f"COHERE_METRICS completed_segments={min(i + len(part), len(segs))}/{len(segs)} batch_seconds={time.perf_counter()-t0:.1f}s inference_elapsed={time.perf_counter()-inference_started:.1f}s")
     with open(a['out'], 'w', encoding='utf-8') as f:
         json.dump(out, f, ensure_ascii=False)
     log(f"COHERE_TIMING total={time.perf_counter()-started:.1f}s inference={inference_seconds:.1f}s segments={len(segs)} output={len(out)}")

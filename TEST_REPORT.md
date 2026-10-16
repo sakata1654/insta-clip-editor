@@ -1,9 +1,8 @@
-# v1.1.4 validation report
+# v1.1.5 validation report
 
-- JavaScript syntax validation with Node.js: PASS
-- ZIP integrity: checked after packaging
-- Preserves existing project files and UI; only adds poem/qasida recovery controls, workflow code, and version/notes updates
-- Windows/Tauri build: NOT RUN in this environment
-- Online source retrieval: NOT live-tested; depends on network, AllOrigins proxy, and source-site access
-- Arabic/Urdu line alignment accuracy: NOT tested against reference audio; manual review is required
-- AI fallback: code path uses the existing configured translation provider; provider credentials/network were not live-tested
+- Cohere runner Python syntax compilation: PASS
+- Cohere inference path statically checked against the official Hugging Face Transformers examples: PASS
+- Archive integrity after packaging: PASS
+- Windows/Tauri build: NOT RUN
+- End-to-end model inference: NOT RUN in this environment
+- Word error rate / reference-transcript comparison: NOT RUN; must be tested with the same audio and a manually corrected reference transcript before claiming an accuracy improvement.
