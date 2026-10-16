@@ -38,11 +38,35 @@ def main():
         kw['task'] = 'translate'
     segs, info = model.transcribe(a['audio'], **kw)
     total = max(1.0, float(info.duration))
-    out = []
+    raw = []
     for s in segs:
-        out.append({"s": s.start, "e": s.end, "t": s.text.strip(),
-                    "w": [{"w": w.word, "s": w.start, "e": w.end} for w in (s.words or [])]})
+        text = s.text.strip()
+        if text:
+            raw.append({"s": float(s.start), "e": float(s.end), "t": text,
+                        "w": [{"w": w.word, "s": float(w.start), "e": float(w.end)} for w in (s.words or [])]})
         print(f"progress = {min(99, int(s.end / total * 100))}%", flush=True)
+    # Whisper's native segments can break a grammatical sentence across boundaries.
+    # Merge adjacent pieces until sentence punctuation or a meaningful pause; this also
+    # keeps poetic/qasida lines intact where punctuation marks the line ending.
+    out = []
+    sentence_end = ('.', '?', '!', '؟', '۔', '…', ':', ';', '؛', '।')
+    for seg in raw:
+        if not out:
+            out.append(seg)
+            continue
+        prev = out[-1]
+        gap = max(0.0, seg['s'] - prev['e'])
+        ends_sentence = prev['t'].rstrip().endswith(sentence_end)
+        combined_words = (prev['t'] + ' ' + seg['t']).split()
+        too_long = len(combined_words) > 42 or (seg['e'] - prev['s']) > 9.0
+        # Prefer intact sentences; only start a new caption after punctuation, a long
+        # pause, or a safety cap so long lectures still remain readable on screen.
+        if ends_sentence or gap >= 0.85 or too_long:
+            out.append(seg)
+        else:
+            prev['t'] = (prev['t'].rstrip() + ' ' + seg['t'].lstrip()).strip()
+            prev['e'] = seg['e']
+            prev['w'].extend(seg.get('w', []))
     json.dump(out, open(a['out'], 'w', encoding='utf-8'), ensure_ascii=False)
     print("DONE", flush=True)
 

@@ -561,17 +561,110 @@ async fn ytdlp_download(app: AppHandle, url: String, fmt: String, dir: String, s
     }).await.map_err(|e| e.to_string())?
 }
 
-// ---------------------------------------------------------------- transcription (your faster-whisper, or whisper.cpp)
+// Probe a media duration for progress percentages; the frontend also supplies a hint
+// when it already has metadata, so ffprobe is only a fallback.
+fn probe_media_duration(path: &str) -> Option<f64> {
+    let exe = find_tool("ffprobe")?;
+    let mut c = Command::new(exe);
+    nowin(&mut c);
+    let output = c.args(["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1"])
+        .arg(path).output().ok()?;
+    if !output.status.success() { return None; }
+    let d = String::from_utf8_lossy(&output.stdout).trim().parse::<f64>().ok()?;
+    if d.is_finite() && d > 0.0 { Some(d) } else { None }
+}
+
+// FFmpeg extraction used to buffer all output and show a static "Extracting audio…"
+// message. Read its progress pipe as it runs and keep a small stderr tail for failures.
+fn run_ffmpeg_progress(app: &AppHandle, mut c: Command, total_seconds: Option<f64>) -> Result<(ExitStatus, String), String> {
+    let mut child = c.stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("FFmpeg could not start: {e}"))?;
+    let stdout = child.stdout.take().ok_or("FFmpeg stdout unavailable")?;
+    let stderr = child.stderr.take().ok_or("FFmpeg stderr unavailable")?;
+    let tail = Arc::new(Mutex::new(VecDeque::<String>::new()));
+    let tail_for_thread = Arc::clone(&tail);
+    let app_for_thread = app.clone();
+    let stderr_thread = std::thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().flatten() {
+            remember_line(&tail_for_thread, line.clone());
+            let lower = line.to_lowercase();
+            if lower.contains("error") || lower.contains("invalid") || lower.contains("failed") {
+                let _ = app_for_thread.emit("whisper-log", format!("FFmpeg: {line}"));
+            }
+        }
+    });
+    let mut last_percent = u32::MAX;
+    for line in BufReader::new(stdout).lines().flatten() {
+        let timestamp = line.strip_prefix("out_time_us=").or_else(|| line.strip_prefix("out_time_ms="));
+        if let Some(value) = timestamp {
+            if let (Some(total), Ok(micros)) = (total_seconds, value.parse::<f64>()) {
+                // FFmpeg's out_time_ms field is historically reported in microseconds.
+                let pct = ((micros / 1_000_000.0 / total) * 100.0).round().clamp(0.0, 99.0) as u32;
+                if pct != last_percent {
+                    last_percent = pct;
+                    let _ = app.emit("whisper-log", format!("extract-progress={pct}%"));
+                }
+            } else if last_percent == u32::MAX {
+                let _ = app.emit("whisper-log", "extract-progress=working");
+                last_percent = 0;
+            }
+        } else if line == "progress=end" {
+            let _ = app.emit("whisper-log", "extract-progress=100%");
+        }
+    }
+    let status = child.wait().map_err(|e| format!("FFmpeg wait failed: {e}"))?;
+    let _ = stderr_thread.join();
+    let detail = tail.lock().map(|lines| lines.iter().rev().take(12).cloned().collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n"))
+        .unwrap_or_else(|_| "Could not read FFmpeg diagnostics.".to_string());
+    if status.success() { let _ = app.emit("whisper-log", "extract-progress=100%"); }
+    Ok((status, detail))
+}
+
 #[tauri::command]
-async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, translate: bool, model: String, prompt: String, ctx: bool, det: bool, engine: String) -> Result<String, String> {
+async fn media_duration(path: String) -> Result<f64, String> {
+    tauri::async_runtime::spawn_blocking(move || probe_media_duration(&path).ok_or_else(|| format!("Could not determine media duration: {path}")))
+        .await.map_err(|e| e.to_string())?
+}
+
+// Create a timed source clip from a still image and audio so the preview has the right
+// duration. The selected original audio is also passed separately to final export, where
+// the app applies its normal audio-processing chain without re-encoding the preview audio.
+#[tauri::command]
+async fn make_background_video(image: String, audio: String, duration: f64, width: u32, height: u32, out: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if !Path::new(&image).is_file() { return Err(format!("Background image not found: {image}")); }
+        if !Path::new(&audio).is_file() { return Err(format!("Audio source not found: {audio}")); }
+        if !duration.is_finite() || duration <= 0.0 || duration > 43_200.0 { return Err("Audio duration is missing or outside the supported range (0–12 hours).".into()); }
+        let w = ((width.clamp(320, 2160)) / 2) * 2;
+        let h = ((height.clamp(320, 3840)) / 2) * 2;
+        let vf = format!("scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1");
+        let mut c = ffmpeg()?;
+        c.args(["-y", "-hide_banner", "-loglevel", "error", "-loop", "1", "-framerate", "30", "-i", &image, "-i", &audio, "-t", &duration.to_string(), "-vf", &vf, "-r", "30", "-map", "0:v:0", "-map", "1:a:0", "-c:v", "libx264", "-preset", "ultrafast", "-tune", "stillimage", "-crf", "28", "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart"]).arg(&out);
+        let output = c.output().map_err(|e| format!("FFmpeg could not create the background clip: {e}"))?;
+        if !output.status.success() {
+            let detail = String::from_utf8_lossy(&output.stderr).lines().rev().take(8).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+            return Err(format!("Could not create the timed background clip. {detail}"));
+        }
+        Ok(out)
+    }).await.map_err(|e| e.to_string())?
+}
+
+// ---------------------------------------------------------------- transcription (faster-whisper, Cohere Transcribe, or whisper.cpp)
+#[tauri::command]
+async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, translate: bool, model: String, prompt: String, ctx: bool, det: bool, engine: String, duration_hint: Option<f64>) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let tmp = std::env::temp_dir();
-        let wav = tmp.join("ics_audio.wav");
-        let o = ffmpeg()?.args(["-y", "-i", &input, "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le"]).arg(&wav)
-            .output().map_err(|e| format!("ffmpeg: {e}"))?;
-        if !o.status.success() {
-            return Err(format!("ffmpeg failed: {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("")));
+        let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_micros()).unwrap_or_default();
+        let wav = tmp.join(format!("ics_audio_{}_{}.wav", std::process::id(), nonce));
+        let total = duration_hint.filter(|v| v.is_finite() && *v > 0.0).or_else(|| probe_media_duration(&input));
+        let _ = app.emit("whisper-log", "extract-progress=0%");
+        let mut extract = ffmpeg()?;
+        extract.args(["-y", "-hide_banner", "-loglevel", "error", "-i", &input, "-map", "0:a:0", "-vn", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-progress", "pipe:1", "-nostats"]).arg(&wav);
+        let (extract_status, extract_detail) = run_ffmpeg_progress(&app, extract, total)?;
+        if !extract_status.success() {
+            let detail = if extract_detail.trim().is_empty() { "No FFmpeg diagnostic output was captured.".to_string() } else { extract_detail };
+            return Err(format!("Audio extraction failed for '{}'. Check that the file contains an audio track and is readable.\n{}", input, detail));
         }
+        let _ = app.emit("whisper-log", "phase=loading-model");
         if engine == "cohere" {
             let mid = match lang.as_str() {
                 "ar" => "CohereLabs/cohere-transcribe-arabic-07-2026",
@@ -652,18 +745,19 @@ async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, tr
 
 // ---------------------------------------------------------------- final render: audio chain + MP4 encode
 #[tauri::command]
-async fn finalize_export(app: AppHandle, video: String, source: String, start: f64, dur: f64, speed: f64, enhance: bool, pre: String, vocals: bool, demucs: String, crf: u32, out: String) -> Result<String, String> {
+async fn finalize_export(app: AppHandle, video: String, source: String, audio_source: String, start: f64, dur: f64, speed: f64, enhance: bool, pre: String, vocals: bool, demucs: String, crf: u32, out: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let log = |m: &str| { let _ = app.emit("export-log", m.to_string()); };
         let work = PathBuf::from(&out).parent().map(|p| p.to_path_buf()).unwrap_or_else(std::env::temp_dir);
         let wav = work.join("audio_work.wav");
         let speed = if speed.is_finite() && speed >= 0.5 && speed <= 2.0 { speed } else { 1.0 };
-        let mut src = if pre.trim().is_empty() { source.clone() } else { pre.clone() };
+        let base_audio = if audio_source.trim().is_empty() { source.clone() } else { audio_source.clone() };
+        let mut src = if pre.trim().is_empty() { base_audio.clone() } else { pre.clone() };
         let mut trimmed = false;
         if vocals && pre.trim().is_empty() {
             log("Extracting audio for vocal isolation…");
             let hq = work.join("audio_hq.wav");
-            let o = ffmpeg()?.args(["-y", "-ss", &start.to_string(), "-t", &dur.to_string(), "-i", &source, "-vn", "-ac", "2", "-ar", "44100"]).arg(&hq).output().map_err(|e| format!("ffmpeg: {e}"))?;
+            let o = ffmpeg()?.args(["-y", "-ss", &start.to_string(), "-t", &dur.to_string(), "-i", &base_audio, "-vn", "-ac", "2", "-ar", "44100"]).arg(&hq).output().map_err(|e| format!("ffmpeg: {e}"))?;
             if o.status.success() {
                 let sep = work.join("demucs_separated");
                 let mut got: Option<PathBuf> = None;
@@ -718,7 +812,7 @@ fn main() {
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
             set_overrides, env_check, install_tool, read_file, write_file, append_file, reveal,
-            ytdlp_version, ytdlp_update, ytdlp_download, transcribe, finalize_export
+            ytdlp_version, ytdlp_update, ytdlp_download, transcribe, media_duration, make_background_video, finalize_export
         ])
         .run(tauri::generate_context!())
         .expect("error while running app");

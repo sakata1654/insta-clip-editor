@@ -1,5 +1,5 @@
 # Insta Clip Studio
-Download (yt-dlp) -> Edit (studio card / simple crop, themes, camera, banner) -> Subtitles (faster-whisper, AI translate) -> Export (FFmpeg).
+Download (yt-dlp) -> Edit (assets, overlays, studio card / simple crop, themes, camera, banner) -> Subtitles (faster-whisper, Cohere, AI translate) -> Export (FFmpeg).
 
 ## Get the .exe (pick one)
 **A. GitHub builds it for you**
@@ -33,3 +33,9 @@ Gemini (or OpenAI / Claude / Groq / OpenRouter / Ollama). Lines are sent with th
 ## Cohere Transcribe troubleshooting
 
 If Cohere fails, the Transcribe status now shows Python's recent diagnostic output instead of only a generic exit-code message. For gated-model errors, log in to Hugging Face, accept the conditions on the model page for the selected language, create a Read token from that same account, save it in Setup, and retry. For low-VRAM errors, close GPU-heavy applications and retry; the runner uses smaller batches on GPUs with less than 8 GB VRAM.
+
+## Assets and audio-only lecture workflow
+
+Use the **Assets** tab to add images, videos, and audio files including MP3. An audio asset can be used directly as the transcription source and selected export soundtrack. To make a visual timeline for an audio-only lecture, add the MP3, add a background image, and choose **Create timed background**. Then generate subtitles, translate them, keep your usual styles, and export. Imported images/videos can also be placed as timed overlays.
+
+Audio extraction reports FFmpeg progress in the subtitle status area rather than displaying only a static “Extracting audio…” message.

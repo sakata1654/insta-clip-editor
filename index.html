@@ -63,7 +63,7 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 .pbar{height:6px;background:var(--p2);border-radius:3px;overflow:hidden;margin:6px 0}.pbar i{display:block;height:100%;width:0;background:var(--a);transition:width .2s}
 #apim{position:fixed;inset:0;background:#000a;display:none;place-items:center;z-index:30}#apim.on{display:grid}
 .card2{width:420px;background:var(--p);border:1px solid var(--b);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:10px}.card2 label{display:flex;flex-direction:column;gap:4px;color:var(--m)}
-.tabs{flex-wrap:wrap}.tabs button{flex:1 0 auto;padding:8px 10px}.cut{position:absolute;top:0;bottom:0;width:2px;background:#ffd400;pointer-events:none;text-decoration:none}
+.tabs{flex-wrap:wrap}.tabs button{flex:1 0 auto;padding:8px 10px}.cut{position:absolute;top:0;bottom:0;width:2px;background:#ffd400;pointer-events:none;text-decoration:none}.asset-ov-controls{display:grid;grid-template-columns:1fr 1fr;gap:6px}.asset-ov-controls label{display:flex;flex-direction:column;gap:3px;color:var(--m);font-size:11px}.asset-ov-controls input{width:100%;min-width:0;padding:4px}
 @font-face{font-family:Amiri;src:url(fonts/Amiri-Bold.ttf);font-weight:100 900}
 #setup{grid-area:2/1/4/3;display:none;overflow:auto;padding:28px;background:var(--bg)}#app.st #setup{display:block}#app.st #side,#app.st #main,#app.st #tlw{display:none}
 #trtab{grid-area:2/1/4/3;display:none;background:var(--bg);overflow:hidden}#app.tr #trtab{display:grid;grid-template-columns:370px 1fr}
@@ -76,15 +76,17 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--p2);border:1px solid var(--a);padding:8px 14px;border-radius:8px;display:none;z-index:10}
 .hint{color:var(--m);font-size:12px;margin:6px 0 10px}
 #asrst{white-space:pre-wrap;overflow-wrap:anywhere;max-height:190px;overflow:auto}
+.dual-paper{font-family:Georgia,serif}
 </style></head>
 <body>
 <div id="app">
+<div id="projectHome" style="display:none;position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;padding:28px"><div style="max-width:1100px;margin:auto"><div class="rt" style="justify-content:space-between"><div><h1 style="margin:0">Insta Clip Studio</h1><div class="hint">Your projects, saved work and recent sessions</div></div><button id="homeNew" class="pri">＋ New project</button></div><div class="row"><div class="rt"><input id="projectName" placeholder="Project name (e.g. Qasida — Burdah)" style="flex:1"><button id="homeSave" class="pri">Save current project</button><button id="homeBack">Back to editor</button></div></div><div id="projectCards" class="sg" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px"></div><div class="hint">Project files save your edits, subtitle text and timing, styles, translations, and asset references on this device. Original media files remain where you saved them; if a file is moved, re-add it from Assets.</div></div></div>
 <header><b>🎬 Insta Clip Studio</b><nav id="nav"><button data-v="dl">⬇ Download</button><button data-v="ed" class="on">✂ Editor</button><button data-v="su">💬 Subtitles</button><button data-v="tr">🌐 Translate</button><button data-v="ex">📤 Export</button><button data-v="set">⚙ Setup <i id="envdot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8b93a5"></i></button></nav>
-<button id="recover" style="display:none" title="Restore the autosaved session">↺ Recover</button><button id="open">Open video</button><button id="loadp">Load project</button><button id="savep">Save project</button><button id="exp" class="pri">Export</button></header>
+<button id="projects" title="Project home">⌂ Projects</button><button id="recover" style="display:none" title="Restore the autosaved session">↺ Recover</button><button id="open">Open video</button><button id="loadp">Load project</button><button id="savep">Save project</button><button id="exp" class="pri">Export</button></header>
 
 <aside id="side">
-<div class="tabs"><button data-p="frame" data-v="ed" class="on">Frame</button><button data-p="theme" data-v="ed">Theme</button><button data-p="cam" data-v="ed">Camera</button><button data-p="ovl" data-v="ed">Overlays</button><button data-p="txt" data-v="ed">Text</button><button data-p="fx" data-v="ed">Effects</button><button data-p="subs" data-v="su">Subtitles</button><button data-p="sty" data-v="su">Default style</button><button data-p="exp" data-v="ex">Export</button><button data-p="aud" data-v="ex">Audio</button><button data-p="cap" data-v="ex">Caption</button></div>
-<div class="pane on" id="p-frame"></div><div class="pane" id="p-theme"></div><div class="pane" id="p-cam"></div><div class="pane" id="p-ovl"></div><div class="pane" id="p-exp"></div><div class="pane" id="p-aud"></div><div class="pane" id="p-cap"></div>
+<div class="tabs"><button data-p="frame" data-v="ed" class="on">Frame</button><button data-p="assets" data-v="ed">Assets</button><button data-p="theme" data-v="ed">Theme</button><button data-p="cam" data-v="ed">Camera</button><button data-p="ovl" data-v="ed">Overlays</button><button data-p="txt" data-v="ed">Text</button><button data-p="fx" data-v="ed">Effects</button><button data-p="subs" data-v="su">Subtitles</button><button data-p="sty" data-v="su">Default style</button><button data-p="exp" data-v="ex">Export</button><button data-p="aud" data-v="ex">Audio</button><button data-p="cap" data-v="ex">Caption</button></div>
+<div class="pane on" id="p-frame"></div><div class="pane" id="p-assets"></div><div class="pane" id="p-theme"></div><div class="pane" id="p-cam"></div><div class="pane" id="p-ovl"></div><div class="pane" id="p-exp"></div><div class="pane" id="p-aud"></div><div class="pane" id="p-cap"></div>
 
 <div class="pane" id="p-subs">
 <div class="row"><b>🔤 Text size · find & replace</b>
@@ -109,6 +111,7 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 
 <div class="pane" id="p-sty">
 <div class="hint">Default style for every subtitle. Each subtitle can override it in the Subtitles tab. Drag subtitles on the preview to move them.</div>
+<div class="row"><b>Dual subtitles — poem / qasida style</b><div class="hint">Keeps your existing dual-subtitle style and adds a parchment layout like your reference image.</div><label><input type="checkbox" id="dualOn"> Enable dual subtitles when a translation exists</label><label>Layout <select id="dualStyle"><option value="classic">Classic (existing)</option><option value="parchment">Poem / qasida · parchment</option></select></label><label>Arabic / source size <input id="dualSize" type="range" min="24" max="100" value="58"></label><label>Translation size <input id="dualTransSize" type="range" min="18" max="64" value="32"></label><label>Source subtitle vertical position <input id="dualSourceY" type="range" min="5" max="95" value="44"></label><label>Translation vertical position <input id="dualTransY" type="range" min="5" max="95" value="56"></label><label>Source horizontal position <input id="dualSourceX" type="range" min="5" max="95" value="50"></label><label>Translation horizontal position <input id="dualTransX" type="range" min="5" max="95" value="50"></label></div>
 <div class="bar" id="presets"></div>
 <div class="f"><label>Font</label><select data-k="st.font"><option>Impact, sans-serif</option><option>Arial Black, sans-serif</option><option>system-ui, sans-serif</option><option>Georgia, serif</option><option>Courier New, monospace</option><option>Comic Sans MS, cursive</option><option>Trebuchet MS, sans-serif</option></select><span></span></div>
 <div class="f"><label>Size</label><input type="range" min="20" max="200" data-k="st.size"><span class="v"></span></div>
@@ -175,7 +178,7 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 <section id="trtab"><div id="trset"></div><div id="trmain"><div id="trbar"></div><div id="trlist"></div></div></section>
 </div>
 <video id="v" playsinline style="display:none"></video>
-<input type="file" id="fv" accept="video/*" hidden><input type="file" id="fimg" accept="image/*" hidden><input type="file" id="fov" accept="image/*" hidden><input type="file" id="fav" accept="image/*" hidden><input type="file" id="fs" accept=".srt" hidden><input type="file" id="fp" accept=".json" hidden>
+<input type="file" id="fv" accept="video/*" hidden><input type="file" id="fa-image" accept="image/*" hidden><input type="file" id="fa-video" accept="video/*" hidden><input type="file" id="fa-audio" accept="audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,.opus,.wma" hidden><input type="file" id="fimg" accept="image/*" hidden><input type="file" id="fov" accept="image/*" hidden><input type="file" id="fav" accept="image/*" hidden><input type="file" id="fs" accept=".srt" hidden><input type="file" id="fp" accept=".json" hidden>
 <div id="pk"><canvas id="sv" width="220" height="140"></canvas><input type="range" id="hue" min="0" max="360"><div class="pkrow"><i id="pcur"></i><input id="pkx" maxlength="7" spellcheck="false"><button id="eye" title="Pick from screen">💧</button></div><div class="pkrow"><label>R<input id="pkr" type="number" min="0" max="255"></label><label>G<input id="pkg" type="number" min="0" max="255"></label><label>B<input id="pkb" type="number" min="0" max="255"></label></div><div id="pal"></div></div>
 
 <div id="apim"><div class="card2"><h3 style="margin:0">AI API settings</h3>
@@ -197,11 +200,13 @@ const GR0={on:1,mode:'theme',start:55,end:88,max:98};
 const SPK0={on:0,text:'',gap:95,intro:1,prog:1,wave:1,s1:46,s2:32,font:''};
 const WM0={on:0,text:'',size:42,dy:0,font:''};
 const HD0={on:0,text:'',auto:1,y:60,scale:100,scrim:1,s1:74,s2:50,font:''};
-const DU0={on:0,size:34,font:''};
+const DU0={on:0,size:34,font:'',sourceY:44,transY:56,sourceX:50,transX:50};
 const EX0={arch:1,crf:19};
-const AUD0={enh:1,vocals:0,model:'htdemucs',pre:''};
+const AUD0={enh:1,vocals:0,model:'htdemucs',pre:'',track:'',trackName:''};
 const CARD0={img:null};
-const S={mode:'studio',fr:{...FR0},fg:{mode:'video',kb:1,kbz:10},gr:{...GR0},spk:{...SPK0},wm:{...WM0},hd:{...HD0},du:{...DU0},ex:{...EX0},aud:{...AUD0},grain:6,themes:[],theme:0,shift:0,cam:'auto',shots:[{t:0,px:0,py:0,zoom:100}],shotIdx:-1,card:{...CARD0},dm:'video',guides:0,hov:0,sample:0,path:null,file:null,meta:{},subs:[],texts:[],sel:null,aspect:'9:16',trimS:0,trimE:0,vol:100,st:{...ST0},fx:{...FX0}};
+const S={mode:'studio',fr:{...FR0},fg:{mode:'video',kb:1,kbz:10},gr:{...GR0},spk:{...SPK0},wm:{...WM0},hd:{...HD0},du:{...DU0},ex:{...EX0},aud:{...AUD0},grain:6,themes:[],theme:0,shift:0,cam:'auto',shots:[{t:0,px:0,py:0,zoom:100}],shotIdx:-1,card:{...CARD0},dm:'video',guides:0,hov:0,sample:0,path:null,file:null,meta:{},subs:[],texts:[],mediaOverlays:[],sel:null,aspect:'9:16',trimS:0,trimE:0,vol:100,st:{...ST0},fx:{...FX0}};
+let assetLibrary=[];try{const saved=JSON.parse(localStorage.icsAssets||'[]');if(Array.isArray(saved))assetLibrary=saved.filter(a=>a&&a.path&&['image','video','audio'].includes(a.type)).map(a=>({...a,file:null,img:null,url:null}))}catch{}
+try{S.aud.track=localStorage.icsAudioTrack||S.aud.track||'';S.aud.trackName=localStorage.icsAudioName||S.aud.trackName||''}catch{}
 const PRESETS={Classic:{},'Yellow pop':{acc:0,color:'#ffd400',sw:12},'Boxed':{acc:0,color:'#ffffff',sw:0,bga:85,bg:'#111111',font:'system-ui, sans-serif',shb:26,shx:0,shy:10,sha:60},'Neon':{acc:0,color:'#00ffd0',stroke:'#ff00aa',sw:6,shc:'#00ffd0',shb:34,shx:0,shy:0,sha:100},'Minimal':{acc:0,color:'#ffffff',sw:0,bold:0,size:56,font:'system-ui, sans-serif',shb:8,shx:0,shy:2}};
 let uid=1,dur=0,exporting=false,drag=null;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -212,7 +217,7 @@ const set=(p,v)=>{const a=p.split('.'),l=a.pop();a.reduce((o,k)=>o[k],S)[l]=v};
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
 /* ---------- canvas rendering (same path for preview + export) ---------- */
-let sc=.5,PQ=.5,LW=1080,LH=1920,dirty=3,lastS=0,fgImg=null,ovlImg=null,ovlC=null,FD=null,lastFace=0;
+let sc=.5,PQ=.5,LW=1080,LH=1920,dirty=3,lastS=0,fgImg=null,ovlImg=null,ovlC=null,FD=null,lastFace=0;const mediaNodes=new Map();
 const inv=()=>{dirty=3},stw=$('#stagew');
 function fit(){const r=LW/LH,w=stw.clientWidth-24,h=stw.clientHeight-24;let cw=w,ch=w/r;if(ch>h){ch=h;cw=h*r}C.style.width=Math.max(1,cw)+'px';C.style.height=Math.max(1,ch)+'px'}
 function setAspect(){[LW,LH]=DIMS[S.aspect];C.width=Math.round(LW*sc);C.height=Math.round(LH*sc);bc.width=Math.max(32,Math.round(LW/10));bc.height=Math.round(bc.width*LH/LW);if(ovlImg)buildOvl();fit();inv()}
@@ -302,10 +307,30 @@ function bannerGeo(){const ls=S.spk.text.split('|').map(s=>clean(s.trim()));X.fo
 const ease5=p=>1-Math.pow(1-p,5);
 function bannerX(g,tt){const sp=S.spk;if(S.sample||!sp.intro)return 0;const a=.5,d=1.2;return tt<a?-g.bw-50:tt<a+d?(-g.bw-50)*(1-ease5((tt-a)/d)):0}
 function partFor(a,t){if(!a.t.includes('|'))return[a.t,a.s];const ps=a.t.split('|').map(s=>s.trim()).filter(Boolean);if(ps.length<2)return[ps[0]||'',a.s];const tw=ps.reduce((n,p)=>n+p.split(/\s+/).length,0),d=a.e-a.s;let c=a.s;for(const p of ps){const e=c+d*p.split(/\s+/).length/Math.max(1,tw);if(t<e)return[p,c];c=e}return[ps[ps.length-1],c]}
-function drawDual(W,txt,anchor){const d=S.du;let size=d.size,font,r;const t=clean(txt);for(;;){font=`700 ${size}px ${S.du.font||AMIRI}`;r=lines(t,font,W*.82);if(r.L.length<=2||size-2<22)break;size-=2}
- const lh=size*1.25,bh=lh*r.L.length,pad=14,pw=r.W+pad*2,ph=bh+pad*2,px=(W-pw)/2,py=anchor.cy!=null?anchor.cy-ph/2:anchor.bottom-ph;
- X.save();X.filter=`blur(${8*sc}px)`;X.fillStyle='rgba(0,0,0,.745)';rr(px+pad*.3,py+pad*.3,pw-pad*.6,ph-pad*.6,pad*.9);X.fill();X.restore();
- X.save();X.font=font;X.textAlign='center';X.textBaseline='top';X.fillStyle='#fff';X.direction=isRtl(t)?'rtl':'ltr';r.L.forEach((l,i)=>X.fillText(l,W/2,py+pad+i*lh));X.restore()}
+function drawDual(W,txt,anchor,translation=''){const d=S.du;const parchment=d.style==='parchment';let size=parchment?(+d.size||58):d.size,font,r;const t=clean(txt);for(;;){font=`700 ${size}px ${parchment?(d.font||AMIRI):(S.du.font||AMIRI)}`;r=lines(t,font,W*(parchment?.9:.82));if(r.L.length<=2||size-2<18)break;size-=2}
+ const trans=clean(translation||''),ts=+d.transSize||32,lh=size*(parchment?1.3:1.25),tlh=ts*1.25,srcH=lh*r.L.length,tr=trans?lines(trans,`500 ${ts}px system-ui`,W*.9):{L:[]},trH=tlh*tr.L.length,pad=parchment?24:14,pw=parchment?W*.94:Math.min(W*.94,r.W+pad*2),ph=srcH+(trans?trH+18:0)+pad*2,srcX=W*cl(Number(d.sourceX??50),0,100)/100,trX=W*cl(Number(d.transX??50),0,100)/100,srcY=HDU(W,d.sourceY,anchor,ph),trY=HDU(W,d.transY,anchor,ph),px=(W-pw)/2,py=Math.max(0,Math.min(LH-ph,Math.min(srcY,trY)-ph/2));
+ X.save();if(parchment){X.fillStyle='#f4e8cf';X.fillRect(px,py,pw,ph);X.globalAlpha=.12;X.fillStyle='#9c7951';for(let i=0;i<18;i++){X.beginPath();X.ellipse(px+((i*97)%Math.max(1,pw)),py+((i*53)%Math.max(1,ph)),18+(i%5)*7,3+(i%3)*2,i*.7,0,Math.PI*2);X.fill()}X.globalAlpha=1;X.strokeStyle='#c5a879';X.lineWidth=2;X.strokeRect(px+8,py+8,pw-16,ph-16)}else{X.filter=`blur(${8*sc}px)`;X.fillStyle='rgba(0,0,0,.745)';rr(px+pad*.3,py+pad*.3,pw-pad*.6,ph-pad*.6,pad*.9);X.fill()}X.restore();
+ X.save();X.textAlign='center';X.textBaseline='top';X.direction=isRtl(t)?'rtl':'ltr';X.font=font;X.fillStyle=parchment?'#17130f':'#fff';r.L.forEach((l,i)=>X.fillText(l,srcX,srcY-srcH/2+i*lh));if(trans){X.font=`500 ${ts}px system-ui`;X.direction=isRtl(trans)?'rtl':'ltr';X.fillStyle=parchment?'#29231d':'#f2f2f2';tr.L.forEach((l,i)=>X.fillText(l,trX,trY-trH/2+i*tlh))}X.restore()}
+function HDU(W,y,anchor,ph){if(Number.isFinite(+y))return LH*cl(+y,0,100)/100;return anchor.cy!=null?anchor.cy:anchor.bottom-ph/2}
+function drawMediaOverlays(t,W,H){
+ for(const o of (S.mediaOverlays||[])){
+  const rec=mediaNodes.get(o.id),el=rec&&rec.el;if(!el)continue;
+  const start=Number(o.start)||0,end=Number.isFinite(+o.end)?+o.end:dur;
+  if(t<start||t>end){if(el.tagName==='VIDEO'&&!el.paused)el.pause();continue}
+  if(el.tagName==='VIDEO'){
+   const target=Math.max(0,t-start);
+   if(Number.isFinite(el.duration)&&el.duration>0&&target>el.duration){if(!el.paused)el.pause();continue}
+   if(!el.seeking&&Math.abs((el.currentTime||0)-target)>.22)try{el.currentTime=target}catch{}
+   if(!V.paused&&el.paused)el.play().catch(()=>{});else if(V.paused&&!exporting&&!el.paused)el.pause();
+   if(el.readyState<2)continue;
+  }
+  const sw=el.naturalWidth||el.videoWidth||1,sh=el.naturalHeight||el.videoHeight||1;
+  let w=W*cl(Number(o.w)||30,1,100)/100,h=H*cl(Number(o.h)||30,1,100)/100;
+  if((o.fit||'contain')==='contain'){const scale=Math.min(w/sw,h/sh);w=sw*scale;h=sh*scale}
+  const x=W*cl(Number(o.x??50),0,100)/100-w/2,y=H*cl(Number(o.y??50),0,100)/100-h/2;
+  X.save();X.globalAlpha=cl(Number(o.opacity??100),0,100)/100;try{X.drawImage(el,x,y,w,h)}catch{}X.restore();
+ }
+}
 function draw(){
  const W=LW,H=LH,t=V.currentTime,F=S.fr,f=S.fx,th=themeAt(t),studio=S.mode==='studio',tt=Math.max(0,t-S.trimS),sr=SRC(),
   ok=sr.w&&((S.fg.mode==='image'&&fgImg)||V.readyState>1);
@@ -334,6 +359,7 @@ function draw(){
  if(!F.on)grain(W,H);
  const G=S.gr;if(G.on&&G.max>0)bgrad(W,H,G,G.mode==='theme'?th.bg:'#000000');
  if(ovlC)X.drawImage(ovlC,0,0,W,H);
+ drawMediaOverlays(t,W,H);
  const cardB=S.frBox?S.frBox.y+S.frBox.h:1120,sp=S.spk,hasB=studio&&sp.on&&sp.text.trim(),bg_=hasB?bannerGeo():null,by=cardB+sp.gap;
  let bxp=0;
  if(hasB){bxp=bannerX(bg_,tt);X.save();rr(bxp,by,bg_.bw,bg_.bh,bg_.br);X.clip();X.filter=`blur(${12*sc}px)`;X.drawImage(C,bxp*sc,by*sc,bg_.bw*sc,bg_.bh*sc,bxp,by,bg_.bw,bg_.bh);X.filter='none';X.fillStyle=rgba(th.banner,.62);X.fillRect(bxp,by,bg_.bw,bg_.bh);X.restore()}
@@ -361,7 +387,7 @@ function draw(){
   if(st.anim==='fade'){al=e;cy+=18*(1-e)}
   else if(st.anim==='pop'){const q=.8+.2*e;X.translate(W/2,cy);X.scale(q,q);X.translate(-W/2,-cy)}
   const tk=part.split(/\s+/).filter(Boolean);let hl=null;if(st.hl&&a.words&&a.words.length===tk.length&&!a.t.includes('|')){let ix=-1;for(let q=0;q<a.words.length;q++)if(a.words[q].s<=t)ix=q;hl={idx:ix,color:st.hlc}}S.subBox=paint({...st,color:col},p,W/2,cy,st.lh,al,hl);X.restore();
-  if(S.du.on&&a.orig){if(studio&&F.on)drawDual(W,a.orig,{cy:cardB+sp.gap/2});else drawDual(W,a.orig,{bottom:S.subBox.y-10})}
+  if(S.du.on&&(a.tr||a.orig)){const source=a.orig!==undefined?a.orig:a.t,translated=a.tr||'';if(studio&&F.on)drawDual(W,source,{cy:cardB+sp.gap/2},translated);else drawDual(W,source,{bottom:S.subBox.y-10},translated)}
  }
  for(const o of S.texts)o.box=(t>=o.s&&t<o.e)?drawT({...S.st,size:o.size,color:o.color,sw:o.sw??0,bga:0,font:o.font||S.st.font,upper:0},o.t,o.x/100*W,o.y/100*H,W*.9):null;
  if(!exporting){
@@ -483,9 +509,10 @@ C.addEventListener('pointerup',()=>{if(pd&&(pd.o||pd.sub))lists();pd=null});
 C.addEventListener('wheel',e=>{e.preventDefault();const d=e.deltaY<0?1:-1;{const[wx,wy]=cp(e);if(hit(S.subBox,wx,wy)){const a=S.subs.find(q=>q.id===S.act);if(a&&a.st&&a.st.size!==undefined)a.st.size=cl(a.st.size+d*2,10,300);else S.st.size=cl(S.st.size+d*2,20,200);syncBinds();lists();inv();return}}if(S.fr.on&&(S.dm==='frame'||e.shiftKey))S.fr.w=cl(S.fr.w+d*2,30,100);else{S.fx.zoom=cl(S.fx.zoom+d*4,100,300);saveShot()}syncBinds();inv()},{passive:false});
 
 /* ---------- transport / file ---------- */
-function openVideo(f,path){if(!f)return;S.file=f;S.path=path||null;V.src=URL.createObjectURL(f);V.onloadedmetadata=()=>{dur=V.duration;S.trimS=0;S.trimE=dur;V.currentTime=0;lists();toast('Loaded '+f.name)}}
+let videoObjectUrl=null;
+function openVideo(f,path){if(!f)return Promise.resolve(false);S.file=f;S.path=path||null;return new Promise(resolve=>{let settled=false;const finish=ok=>{if(settled)return;settled=true;resolve(ok)};V.onloadedmetadata=()=>{dur=Number.isFinite(V.duration)?V.duration:0;S.trimS=0;S.trimE=dur;V.currentTime=0;lists();inv();toast('Loaded '+f.name);finish(true)};V.onerror=()=>{toast('Could not open this video format. Try MP4 or WebM.');finish(false)};if(videoObjectUrl)try{URL.revokeObjectURL(videoObjectUrl)}catch{}videoObjectUrl=URL.createObjectURL(f);V.src=videoObjectUrl;V.load()})}
 async function pickVideo(){const T=window.__TAURI__;if(T?.dialog){try{const p=await T.dialog.open({filters:[{name:'Video',extensions:['mp4','mov','mkv','webm','avi','m4v']}]});if(p)await loadPath(p)}catch(e){toast(String(e))}}else $('#fv').click()}
-async function loadPath(p){toast('Loading video…');const buf=await window.__TAURI__.core.invoke('read_file',{path:p}),n=p.split(/[\\/]/).pop();openVideo(new File([buf],n,{type:/\.webm$/i.test(n)?'video/webm':'video/mp4'}),p)}
+async function loadPath(p){toast('Loading video…');const buf=await window.__TAURI__.core.invoke('read_file',{path:p}),n=p.split(/[\\/]/).pop();return await openVideo(new File([buf],n,{type:/\.webm$/i.test(n)?'video/webm':'video/mp4'}),p)}
 $('#open').onclick=pickVideo;$('#fv').onchange=e=>openVideo(e.target.files[0]);
 addEventListener('dragover',e=>{e.preventDefault();$('#drop').style.display='grid'});
 addEventListener('dragleave',e=>{if(!e.relatedTarget)$('#drop').style.display='none'});
@@ -588,9 +615,10 @@ $('#p-ovl').innerHTML=rows([['','Persistent heading','h'],['hd.on','Heading','ch
 $('#p-sty').innerHTML='<div class="hint">Default for every subtitle (original look: Arial Bold 76, theme color, black outline, fade-in). Each subtitle can override it in the Subtitles tab.</div><div class="bar" id="presets"></div>'+rows([['st.font','Font','sel',FONTS.map(([n,v])=>[v,n])],['st.size','Size','r',20,200],['st.lh','Line spacing','r',.8,2,.05],['st.ls','Letter spacing','r',-2,20,.5],['st.hl','Word highlight','chk'],['st.hlc','Highlight color','c'],['st.acc','Theme color','chk'],['st.color','Text color','c'],['st.stroke','Outline color','c'],['st.sw','Outline','r',0,30],['st.bg','Box color','c'],['st.bga','Box opacity','r',0,100],['st.auto','Auto position','chk'],['st.y','Vertical pos','r',5,95],['st.w','Max width %','r',30,100],['st.fit','Auto-fit 4 lines','chk'],['st.bold','Bold','chk'],['st.upper','UPPERCASE','chk'],['st.anim','Animation','sel',[['fade','Fade + rise'],['pop','Pop'],['none','None']]],['st.shadow','Shade','chk'],['st.shc','Shade color','c'],['st.sha','Shade opacity','r',0,100],['st.shb','Shade blur','r',0,60],['st.shx','Shade X','r',-50,50],['st.shy','Shade Y','r',-50,50]]);
 $('#presets').innerHTML=Object.keys(PRESETS).map(n=>`<button data-pr="${n}">${n}</button>`).join('');
 $('#presets').onclick=e=>{const n=e.target.dataset.pr;if(n){Object.assign(S.st,ST0,PRESETS[n]);if(S.mode==='simple'){S.st.acc=0;S.st.color='#ffffff'}syncBinds()}};
-$('#p-exp').innerHTML=rows([['ex.arch','Auto-save project files','chk'],['ex.crf','Quality (lower = better)','r',14,28]])+'<div class="bar" style="margin-top:10px"><button id="exp2" class="pri">Export video</button><button id="thumb">Save thumbnail</button><button id="openp">Open project folder</button></div><div class="hint" id="exst"></div><div class="hint">Desktop app: renders the picture, then FFmpeg adds the (optionally enhanced) audio and encodes MP4 with NVENC or x264. Everything (clip, subtitles, thumbnail, caption, project) is saved in Documents/Insta Clip Studio/Projects.</div>';
+$('#p-exp').innerHTML=rows([['ex.arch','Auto-save project files','chk'],['ex.crf','Quality (lower = better)','r',14,28]])+'<div class="bar" style="margin-top:10px"><button id="exp2" class="pri">Export video</button><button id="thumb">Save thumbnail</button><button id="openp">Open project folder</button></div><div class="pbar" id="exportProgress" role="progressbar" aria-label="Export progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><div class="hint" id="exportProgressText" aria-live="polite">Ready to export</div><div class="hint" id="exst"></div><div class="hint">Desktop app: renders the picture, then FFmpeg adds the (optionally enhanced) audio and encodes MP4 with NVENC or x264. Everything (clip, subtitles, thumbnail, caption, project) is saved in Documents/Insta Clip Studio/Projects.</div>';
 $('#p-aud').innerHTML=rows([['aud.enh','Studio enhancement','chk'],['aud.vocals','Strip music (Demucs)','chk'],['aud.model','Demucs model','sel',[['htdemucs','htdemucs (fast)'],['htdemucs_ft','htdemucs_ft (cleaner, slower)']]],['','Pre-enhanced audio','html','<button id="preb">Choose file…</button><button id="prex">Clear</button>']])+'<div class="hint" id="prest"></div><div class="hint">Enhancement chain: declip, denoise, high-pass, EQ, air, compression, loudness normalize (-16 LUFS), limiter. Demucs needs Python + <code>pip install demucs</code>. A pre-enhanced file (e.g. from Adobe Podcast) skips straight to compression + loudness.</div>';
 $('#p-cap').innerHTML='<div class="f" style="grid-template-columns:70px 1fr"><label>Title</label><input id="cptitle"></div><div class="f" style="grid-template-columns:70px 1fr"><label>Link</label><input id="cplink"></div><div class="f" style="grid-template-columns:70px 1fr"><label>Start</label><input id="cpstart"></div><div class="f" style="grid-template-columns:70px 1fr"><label>End</label><input id="cpend"></div><div class="f" style="grid-template-columns:70px 1fr"><label>Speaker</label><input id="cpspk"></div><label class="hint">Explanation (from your subtitles)</label><textarea id="cpexp" style="width:100%;min-height:90px"></textarea><div class="bar" style="margin-top:8px"><button id="cpbuild" class="pri">Build caption</button><button id="cpcopy">Copy</button><button id="cpsave">Save .txt</button></div><textarea id="cpout" style="width:100%;min-height:150px"></textarea>';
+$('#p-assets').innerHTML='<h3 style="margin:0 0 8px">Assets</h3><div class="hint">Import images, videos and audio into this project. Image/video assets can be used as the visual source or frame image. An audio asset can drive subtitle generation and the final exported soundtrack.</div><div class="bar"><button id="assetAddImage">＋ Image</button><button id="assetAddVideo">＋ Video</button><button id="assetAddAudio" class="pri">＋ Audio / MP3</button></div><div class="row"><b>Active speech / export audio</b><div class="hint" id="assetAudioStatus">'+(S.aud.trackName?esc(S.aud.trackName):'Using audio from the current video, if any')+'</div><div class="bar"><button id="assetUseVideoAudio">Use source video audio</button><button id="assetRefresh">Refresh list</button></div></div><div id="assetStatus" class="hint" aria-live="polite"></div><div id="assetList"></div><h3 style="margin:14px 0 8px">Added to video</h3><div id="assetOverlayList"></div><div class="hint">For an audio-only lecture: add an MP3, then add an image and choose “Create timed background”. Your subtitle styles, translation settings and timeline controls remain available.</div>';
 $('#avb').onclick=()=>$('#fimg').click();
 $('#fimg').onchange=e=>{const f=e.target.files[0];if(!f)return;const i=new Image();i.onload=()=>{fgImg=i;S.fg.mode='image';syncBinds();inv()};i.src=URL.createObjectURL(f);e.target.value=''};
 $('#ovb').onclick=()=>$('#fov').click();$('#ovx').onclick=()=>{ovlImg=null;buildOvl()};
@@ -619,15 +647,15 @@ function addDone(p){const d=document.createElement('div'),n=p.split(/[\\/]/).pop
  d.querySelector('button').onclick=()=>{view('ed');loadPath(p).catch(e=>toast('Could not open: '+e))};$('#dlist').prepend(d)}
 
 /* ---------- whisper + AI translate ---------- */
-TA?.event?.listen('whisper-log',e=>{const m=/progress\s*=\s*(\d+)%/.exec(e.payload);if(m){$('#asrbar i').style.width=m[1]+'%';$('#asrst').textContent='Transcribing… '+m[1]+'%'}});
+TA?.event?.listen('whisper-log',e=>{const p=String(e.payload||''),x=/extract-progress=(\d+)%/.exec(p),m=/progress\s*=\s*(\d+)%/.exec(p);if(x){$('#asrbar i').style.width=x[1]+'%';$('#asrst').textContent='Extracting audio… '+x[1]+'%';return}if(p==='extract-progress=working'){$('#asrst').textContent='Extracting audio… (processing)';return}if(p==='phase=loading-model'){$('#asrst').textContent='Audio extracted. Preparing transcription model…';$('#asrbar i').style.width='0%';return}if(m){$('#asrbar i').style.width=m[1]+'%';$('#asrst').textContent='Transcribing… '+m[1]+'%'}});
+function mergeSentenceSubtitles(items){const out=[],ends=/[.!?؟۔…:;؛।]$/;for(const raw of (items||[])){const cur={...raw,t:String(raw.t||'').trim()};if(!cur.t)continue;if(!out.length){out.push(cur);continue}const prev=out[out.length-1],gap=Math.max(0,(+cur.s||0)-(+prev.e||0)),words=(prev.t+' '+cur.t).trim().split(/\s+/);if(ends.test(prev.t)||gap>=.85||words.length>42||(+cur.e-(+prev.s))>9){out.push(cur)}else{prev.t=(prev.t+' '+cur.t).replace(/\s+/g,' ').trim();prev.e=cur.e;if(prev.words&&cur.words)prev.words.push(...cur.words)}}return out}
 $('#asrgo').onclick=async()=>{
- if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file)return toast('Open a video first');
+ if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file&&!S.aud.track)return toast('Add an audio asset or open a video first');
  const b=$('#asrgo');b.disabled=true;$('#asrbar i').style.width='0';
- try{let input=S.path;
-  if(!input){$('#asrst').textContent='Preparing file…';input=await TA.path.join(await TA.path.tempDir(),'ics_src'+((S.file.name.match(/\.\w+$/)||['.mp4'])[0]));await writeBytes(input,S.file)}
+ try{let input=await transcriptionPath();
   $('#asrst').textContent='Extracting audio…';
-  const out=await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen:+$('#asrml').value||0,translate:$('#asrtr').checked,model:'base'});
-  S.subs=parseSRT(out).sort((x,y)=>x.s-y.s);lists();$('#asrbar i').style.width='100%';$('#asrst').textContent=S.subs.length+' subtitles created. Edit anything below.';snap()}
+  const out=await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen:+$('#asrml').value||0,translate:$('#asrtr').checked,model:'base',durationHint:await transcriptionDuration()});
+  S.subs=mergeSentenceSubtitles(parseSRT(out).sort((x,y)=>x.s-y.s));lists();$('#asrbar i').style.width='100%';$('#asrst').textContent=S.subs.length+' subtitles created. Edit anything below.';snap()}
  catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
 const PROV={openai:['https://api.openai.com/v1','gpt-4o-mini'],anthropic:['https://api.anthropic.com/v1','claude-haiku-4-5-20251001'],gemini:['https://generativelanguage.googleapis.com/v1beta/openai','gemini-2.0-flash'],groq:['https://api.groq.com/openai/v1','llama-3.3-70b-versatile'],openrouter:['https://openrouter.ai/api/v1','openai/gpt-4o-mini'],ollama:['http://localhost:11434/v1','llama3.1'],custom:['','']};
 let API={prov:'openai',url:PROV.openai[0],key:'',model:PROV.openai[1]};try{API={...API,...JSON.parse(localStorage.icsApi||'{}')}}catch{}
@@ -695,7 +723,36 @@ $('#cdet').onclick=async()=>{if(!S.file)return toast('Open a video first');const
  catch(e){$('#cst').textContent='Scan failed: '+e}b.disabled=false};
 V.addEventListener('loadedmetadata',()=>setTimeout(()=>{S.shots=[{t:0,px:0,py:0,zoom:100,set:false}];S.shotIdx=-1;S.fx.zoom=100;S.fx.px=S.fx.py=0;renderShots();genThemes();if(S.cam!=='manual')initFD().then(()=>{S.shotIdx=-1;inv()})},0));
 /* ---------- source file helper, project archive ---------- */
-async function sourcePath(){const T=window.__TAURI__;if(S.path)return S.path;const ext=(S.file.name.match(/\.\w+$/)||['.mp4'])[0];const p=await T.path.join(await T.path.tempDir(),'ics_src'+ext);await writeBytes(p,S.file);S.path=p;return p}
+async function sourcePath(){const T=window.__TAURI__;if(S.path)return S.path;if(!S.file)throw new Error('Open a video or create a timed background clip before exporting.');const ext=(S.file.name.match(/\.\w+$/)||['.mp4'])[0],p=await T.path.join(await T.path.tempDir(),'ics_src_'+Date.now()+ext);await writeBytes(p,S.file);S.path=p;return p}
+const assetEsc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const assetMime=a=>a.type==='image'?({png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',bmp:'image/bmp'}[(a.name.split('.').pop()||'').toLowerCase()]||'image/png'):a.type==='audio'?({mp3:'audio/mpeg',wav:'audio/wav',m4a:'audio/mp4',aac:'audio/aac',flac:'audio/flac',ogg:'audio/ogg',opus:'audio/ogg',wma:'audio/x-ms-wma'}[(a.name.split('.').pop()||'').toLowerCase()]||'audio/mpeg'):({webm:'video/webm',mov:'video/quicktime'}[(a.name.split('.').pop()||'').toLowerCase()]||'video/mp4');
+function saveAssets(){try{localStorage.icsAssets=JSON.stringify(assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration:duration||0})))}catch{}}
+async function assetPath(a){if(a.path)return a.path;if(!TA?.core||!a.file)throw new Error('This asset has no readable local file path. Re-add it in the desktop app.');const ext=(a.name.match(/\.\w+$/)||[''])[0],safe=a.name.replace(/[^a-z0-9._-]+/gi,'_'),p=await TA.path.join(await TA.path.tempDir(),`ics_asset_${a.id}_${safe||('asset'+ext)}`);await writeBytes(p,a.file);a.path=p;saveAssets();return p}
+async function assetFile(a){if(a.file)return a.file;if(!a.path||!TA?.core)throw new Error('Cannot read this asset file. Re-add it and try again.');const raw=await TA.core.invoke('read_file',{path:a.path});a.file=new File([raw],a.name,{type:assetMime(a)});return a.file}
+async function assetAudioDuration(a){if(a.duration>0)return a.duration;const file=await assetFile(a),url=URL.createObjectURL(file);const d=await new Promise((resolve,reject)=>{const el=new Audio();el.preload='metadata';el.onloadedmetadata=()=>resolve(Number.isFinite(el.duration)?el.duration:0);el.onerror=()=>reject(new Error('The audio duration could not be read. Check that the file is a valid MP3/WAV/M4A.'));el.src=url;el.load()});URL.revokeObjectURL(url);if(d>0){a.duration=d;saveAssets()}return d}
+async function assetImage(a){if(a.img)return a.img;const f=await assetFile(a),url=URL.createObjectURL(f);a.url=url;a.img=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=()=>reject(new Error('Could not load this image asset.'));i.src=url});return a.img}
+function renderAssets(){const root=$('#assetList');if(!root)return;root.innerHTML=assetLibrary.map(a=>{const d=a.type==='audio'&&a.duration?` · ${fmt(a.duration)}`:'';let acts='';if(a.type==='image')acts='<button data-aa="image">Use image in frame</button><button data-aa="overlay">Add image overlay</button><button data-aa="background" class="pri">Create timed background</button>';else if(a.type==='video')acts='<button data-aa="video" class="pri">Use as video source</button><button data-aa="overlay">Add video overlay</button>';else acts='<button data-aa="audio" class="pri">Use for subtitles & export</button>';return `<div class="row" data-asset="${a.id}"><div class="rt"><b style="flex:1;overflow-wrap:anywhere">${assetEsc(a.name)}</b><span class="hint" style="margin:0">${a.type.toUpperCase()}${d}</span></div><div class="bar">${acts}<button data-aa="remove" title="Remove asset">✕</button></div></div>`}).join('')||'<div class="hint">No assets yet. Add an image, video or audio file above.</div>';const ol=$('#assetOverlayList');if(ol)ol.innerHTML=(S.mediaOverlays||[]).map(o=>`<div class="row" data-oid="${o.id}"><div class="rt"><b style="flex:1">${assetEsc(o.name)}</b><button data-oa-remove>Remove</button></div><div class="asset-ov-controls"><label>Start (s)<input type="number" min="0" step="0.1" data-oa="start" value="${(+o.start||0).toFixed(1)}"></label><label>End (s)<input type="number" min="0.1" step="0.1" data-oa="end" value="${(+o.end||dur||1).toFixed(1)}"></label><label>X %<input type="number" min="0" max="100" step="1" data-oa="x" value="${o.x??50}"></label><label>Y %<input type="number" min="0" max="100" step="1" data-oa="y" value="${o.y??50}"></label><label>Width %<input type="number" min="1" max="100" step="1" data-oa="w" value="${o.w??30}"></label><label>Height %<input type="number" min="1" max="100" step="1" data-oa="h" value="${o.h??30}"></label><label>Opacity %<input type="number" min="0" max="100" step="1" data-oa="opacity" value="${o.opacity??100}"></label></div></div>`).join('')||'<div class="hint">No image/video overlays yet. Add an image or video above, then choose Add overlay.</div>';$('#assetAudioStatus').textContent=S.aud.track?(S.aud.trackName||S.aud.track.split(/[\\/]/).pop()):'Using audio from the current video, if any'}
+async function addAssetPath(path,type){const name=path.split(/[\\/]/).pop(),old=assetLibrary.find(a=>a.path===path);if(old){if(type==='audio')await activateAudioAsset(old);renderAssets();return old}const a={id:Date.now()+Math.floor(Math.random()*1000),name,type,path,duration:0,file:null,img:null,url:null};assetLibrary.unshift(a);if(type==='audio'){await activateAudioAsset(a)}saveAssets();renderAssets();$('#assetStatus').textContent=`Added ${type}: ${name}`;return a}
+async function addAssetFile(file,type){const a={id:Date.now()+Math.floor(Math.random()*1000),name:file.name,type,path:null,duration:0,file,img:null,url:null};assetLibrary.unshift(a);if(type==='audio')await activateAudioAsset(a);saveAssets();renderAssets();$('#assetStatus').textContent=`Added ${type}: ${file.name}`;return a}
+async function activateAudioAsset(a){const path=await assetPath(a);S.aud.track=path;S.aud.trackName=a.name;try{localStorage.icsAudioTrack=path;localStorage.icsAudioName=a.name}catch{}let d=0;try{d=await assetAudioDuration(a)}catch{}if(d>0)$('#assetStatus').textContent=`Active audio: ${a.name} (${fmt(d)}). Subtitles will be generated from this file.`;else $('#assetStatus').textContent=`Active audio: ${a.name}. Subtitles will be generated from this file.`;renderAssets()}
+async function transcriptionPath(){if(S.aud.track){const a=assetLibrary.find(x=>x.path===S.aud.track);if(a)return await assetPath(a);return S.aud.track}return await sourcePath()}
+async function transcriptionDuration(){if(S.aud.track){const a=assetLibrary.find(x=>x.path===S.aud.track);if(a){try{const d=await assetAudioDuration(a);if(d>0)return d}catch{}}try{const d=await TA.core.invoke('media_duration',{path:S.aud.track});if(Number.isFinite(d)&&d>0)return d}catch{}return dur||undefined}return dur||undefined}
+async function addAssetDialog(type){const T=window.__TAURI__,filters={image:[{name:'Images',extensions:['png','jpg','jpeg','webp','bmp','gif']}],video:[{name:'Videos',extensions:['mp4','mov','mkv','webm','avi','m4v']}],audio:[{name:'Audio',extensions:['mp3','wav','m4a','aac','flac','ogg','opus','wma']}]};if(T?.dialog){const p=await T.dialog.open({multiple:false,filters:filters[type]});if(p)await addAssetPath(p,type)}else $(`#fa-${type}`).click()}
+async function createTimedBackground(imageAsset){if(!TA?.core)throw new Error('Creating an audio-length background requires the desktop app.');if(!S.aud.track)throw new Error('Add an audio file first, then create the timed background.');const imagePath=await assetPath(imageAsset),audio=assetLibrary.find(a=>a.path===S.aud.track),duration=await transcriptionDuration();if(!duration||!Number.isFinite(duration))throw new Error('Could not determine the selected audio duration. Re-add the audio file and try again.');const out=await TA.path.join(await TA.path.tempDir(),`ics_background_${Date.now()}.mp4`);$('#assetStatus').textContent=`Creating a ${fmt(duration)} background clip…`;await TA.core.invoke('make_background_video',{image:imagePath,audio:S.aud.track,duration,width:LW,height:LH,out});const ok=await loadPath(out);if(!ok)throw new Error('The generated background clip could not be opened.');fgImg=await assetImage(imageAsset);S.fg.mode='image';S.aud.track=await (audio?assetPath(audio):S.aud.track);syncBinds();inv();$('#assetStatus').textContent=`Ready: ${imageAsset.name} with ${S.aud.trackName||'selected audio'} (${fmt(duration)}). Generate subtitles or translate as usual.`;toast('Background timeline ready')}
+async function ensureMediaNode(o){if(mediaNodes.has(o.id))return mediaNodes.get(o.id);let a=assetLibrary.find(x=>x.path===o.path);if(!a){a={id:o.id,name:o.name,type:o.type,path:o.path,duration:0,file:null,img:null,url:null};assetLibrary.push(a);saveAssets()}const f=await assetFile(a),url=URL.createObjectURL(f);if(o.type==='image'){const el=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=()=>reject(new Error('Could not load overlay image: '+o.name));i.src=url});const rec={el,url};mediaNodes.set(o.id,rec);return rec}const el=document.createElement('video');el.preload='auto';el.muted=true;el.playsInline=true;el.loop=false;el.src=url;el.load();await new Promise((resolve,reject)=>{if(el.readyState>=1)return resolve();el.onloadedmetadata=()=>resolve();el.onerror=()=>reject(new Error('Could not load overlay video: '+o.name))});const rec={el,url};mediaNodes.set(o.id,rec);return rec}
+async function addMediaOverlay(a){if(!V.src||!S.file)throw new Error('Open a video first, or create a timed background from an audio file and image.');const path=await assetPath(a),id=Date.now()+Math.floor(Math.random()*1000),o={id,name:a.name,type:a.type,path,start:0,end:Math.max(.1,Math.min(dur||S.trimE||30,a.type==='video'&&a.duration>0?a.duration:(dur||S.trimE||30))),x:50,y:50,w:30,h:30,opacity:100,fit:'contain'};S.mediaOverlays=S.mediaOverlays||[];S.mediaOverlays.push(o);try{await ensureMediaNode(o)}catch(err){S.mediaOverlays=S.mediaOverlays.filter(x=>x.id!==id);throw err}renderAssets();inv();$('#assetStatus').textContent=`Added ${a.name} as a timed overlay. Adjust its time and position below.`;toast('Overlay added')}
+$('#assetOverlayList').addEventListener('change',e=>{const el=e.target.closest('[data-oa]');if(!el)return;const row=el.closest('[data-oid]'),o=(S.mediaOverlays||[]).find(x=>x.id===Number(row?.dataset.oid));if(!o)return;const key=el.dataset.oa,v=Number(el.value);if(!Number.isFinite(v))return;o[key]=v;if(key==='start'&&o.end<=v)o.end=v+.1;if(key==='end'&&v<=o.start)o.end=o.start+.1;inv()});
+$('#assetOverlayList').addEventListener('click',e=>{const b=e.target.closest('[data-oa-remove]');if(!b)return;const row=b.closest('[data-oid]'),id=Number(row?.dataset.oid),rec=mediaNodes.get(id);if(rec){try{if(rec.el.tagName==='VIDEO')rec.el.pause();rec.el.src='';if(rec.url)URL.revokeObjectURL(rec.url)}catch{}mediaNodes.delete(id)}S.mediaOverlays=(S.mediaOverlays||[]).filter(o=>o.id!==id);renderAssets();inv()});
+$('#assetAddImage').onclick=()=>addAssetDialog('image').catch(e=>$('#assetStatus').textContent='❌ '+e.message);
+$('#assetAddVideo').onclick=()=>addAssetDialog('video').catch(e=>$('#assetStatus').textContent='❌ '+e.message);
+$('#assetAddAudio').onclick=()=>addAssetDialog('audio').catch(e=>$('#assetStatus').textContent='❌ '+e.message);
+$('#assetUseVideoAudio').onclick=()=>{S.aud.track='';S.aud.trackName='';try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}renderAssets();$('#assetStatus').textContent='Subtitles/export will use the current video’s audio.'};
+$('#assetRefresh').onclick=renderAssets;
+$('#fa-image').onchange=e=>{const f=e.target.files?.[0];if(f)addAssetFile(f,'image').catch(err=>$('#assetStatus').textContent='❌ '+err.message);e.target.value=''};
+$('#fa-video').onchange=e=>{const f=e.target.files?.[0];if(f)addAssetFile(f,'video').catch(err=>$('#assetStatus').textContent='❌ '+err.message);e.target.value=''};
+$('#fa-audio').onchange=e=>{const f=e.target.files?.[0];if(f)addAssetFile(f,'audio').catch(err=>$('#assetStatus').textContent='❌ '+err.message);e.target.value=''};
+$('#assetList').onclick=async e=>{const b=e.target.closest('button[data-aa]');if(!b)return;const wrap=b.closest('[data-asset]'),id=Number(wrap?.dataset.asset),a=assetLibrary.find(x=>x.id===id);if(!a)return;const act=b.dataset.aa;b.disabled=true;try{if(act==='remove'){assetLibrary=assetLibrary.filter(x=>x.id!==a.id);for(const o of [...(S.mediaOverlays||[])])if(o.path===a.path){const rec=mediaNodes.get(o.id);if(rec){try{if(rec.el.tagName==='VIDEO')rec.el.pause();rec.el.src='';if(rec.url)URL.revokeObjectURL(rec.url)}catch{}mediaNodes.delete(o.id)}}S.mediaOverlays=(S.mediaOverlays||[]).filter(o=>o.path!==a.path);if(S.aud.track===a.path){S.aud.track='';S.aud.trackName='';try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}}saveAssets();renderAssets();$('#assetStatus').textContent='Asset removed.';return}if(act==='audio'){await activateAudioAsset(a)}else if(act==='video'){const path=await assetPath(a);const ok=await loadPath(path);if(ok){S.fg.mode='video';inv();$('#assetStatus').textContent=`Using ${a.name} as the video source.`}}else if(act==='image'){const im=await assetImage(a);if(V.src&&S.file){fgImg=im;S.fg.mode='image';inv();$('#assetStatus').textContent=`Using ${a.name} in the frame. The current video determines the timeline.`}else if(S.aud.track){await createTimedBackground(a)}else throw new Error('Open a video first, or add an MP3/audio file and choose “Create timed background”.')}else if(act==='overlay'){await addMediaOverlay(a)}else if(act==='background'){await createTimedBackground(a)}}catch(err){$('#assetStatus').textContent='❌ '+String(err?.message||err)}finally{b.disabled=false}};
+renderAssets();
 async function projDir(){const T=window.__TAURI__;if(S.dir)return S.dir;const d=new Date(),ts=`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}_${p2(d.getHours())}-${p2(d.getMinutes())}-${p2(d.getSeconds())}`;S.dir=await T.path.join(await T.path.documentDir(),'Insta Clip Studio','Projects','Project_'+ts);return S.dir}
 const seekTo=t=>new Promise(r=>{if(Math.abs(V.currentTime-t)<.001)return r();V.addEventListener('seeked',r,{once:true});V.currentTime=t});
 async function makeThumb(){const was=V.paused;V.pause();const osc=sc;sc=1;setAspect();exporting=true;S.sample=1;let best=null,bs=-1;
@@ -719,24 +776,38 @@ $('#preb').onclick=async()=>{const T=window.__TAURI__;if(!T?.dialog)return toast
 $('#prex').onclick=()=>{S.aud.pre='';$('#prest').textContent=''};
 /* ---------- whisper (options from the original retry loop) ---------- */
 TA?.event?.listen('model-log',e=>{$('#asrst').textContent='Downloading model… '+e.payload+'%';$('#asrbar i').style.width=e.payload+'%'});
+function mergeSentenceSubtitles(items){const out=[],ends=/[.!?؟۔…:;؛।]$/;for(const raw of (items||[])){const cur={...raw,t:String(raw.t||'').trim()};if(!cur.t)continue;if(!out.length){out.push(cur);continue}const prev=out[out.length-1],gap=Math.max(0,(+cur.s||0)-(+prev.e||0)),words=(prev.t+' '+cur.t).trim().split(/\s+/);if(ends.test(prev.t)||gap>=.85||words.length>42||(+cur.e-(+prev.s))>9){out.push(cur)}else{prev.t=(prev.t+' '+cur.t).replace(/\s+/g,' ').trim();prev.e=cur.e;if(prev.words&&cur.words)prev.words.push(...cur.words)}}return out}
 $('#asrgo').onclick=async()=>{
- if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file)return toast('Open a video first');
+ if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file&&!S.aud.track)return toast('Add an audio asset or open a video first');
  const b=$('#asrgo');b.disabled=true;$('#asrbar i').style.width='0';
- try{$('#asrst').textContent='Preparing…';const input=await sourcePath(),model=$('#asrmodel').value;
+ try{$('#asrst').textContent='Preparing…';const input=await transcriptionPath(),model=$('#asrmodel').value;
   await TA.core.invoke('get_model',{model});$('#asrbar i').style.width='0';$('#asrst').textContent='Extracting audio…';
-  const out=await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen:+$('#asrml').value||0,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked});
-  S.subs=parseSRT(out).sort((x,y)=>x.s-y.s);lists();$('#asrbar i').style.width='100%';$('#asrst').textContent=S.subs.length+' subtitles created. Wrong words? Edit them, or change language / hint / model and generate again.';snap()}
+  const out=await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen:+$('#asrml').value||0,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,durationHint:await transcriptionDuration()});
+  S.subs=mergeSentenceSubtitles(parseSRT(out).sort((x,y)=>x.s-y.s));lists();$('#asrbar i').style.width='100%';$('#asrst').textContent=S.subs.length+' subtitles created. Wrong words? Edit them, or change language / hint / model and generate again.';snap()}
  catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
 /* ---------- project save / load / undo (all keys) ---------- */
-const PK=['subs','st','fr','fx','aspect','trimS','trimE','vol','mode','fg','gr','spk','wm','hd','du','grain','themes','theme','shift','cam','shots','ex','aud'];
+const PK=['subs','st','fr','fx','aspect','trimS','trimE','vol','mode','fg','mediaOverlays','gr','spk','wm','hd','du','grain','themes','theme','shift','cam','shots','ex','aud'];
 const projJ=()=>({...Object.fromEntries(PK.map(k=>[k,S[k]])),texts:S.texts.map(({box,...r})=>r)});
 function projLoad(o){for(const k of PK)if(o[k]!==undefined)S[k]=JSON.parse(JSON.stringify(o[k]));S.texts=JSON.parse(JSON.stringify(o.texts||[]));
- S.fr={...FR0,...S.fr};S.st={...ST0,...S.st};S.fx={...FX0,...S.fx};S.gr={...GR0,...S.gr};S.spk={...SPK0,...S.spk};S.wm={...WM0,...S.wm};S.hd={...HD0,...S.hd};S.du={...DU0,...S.du};S.ex={...EX0,...S.ex};S.aud={...AUD0,...S.aud};S.fg={mode:'video',kb:1,kbz:10,...S.fg};
+ S.fr={...FR0,...S.fr};S.st={...ST0,...S.st};S.fx={...FX0,...S.fx};S.gr={...GR0,...S.gr};S.spk={...SPK0,...S.spk};S.wm={...WM0,...S.wm};S.hd={...HD0,...S.hd};S.du={...DU0,...S.du};S.ex={...EX0,...S.ex};S.aud={...AUD0,...S.aud};S.fg={mode:'video',kb:1,kbz:10,...S.fg};S.mediaOverlays=S.mediaOverlays||[];S.mediaOverlays.forEach(o=>ensureMediaNode(o).catch(err=>console.warn('Could not restore media overlay',err)));renderAssets();
  if(!S.shots||!S.shots.length)S.shots=[{t:0,px:0,py:0,zoom:100}];S.shotIdx=-1;uid=1+Math.max(0,...S.subs.map(x=>x.id),...S.texts.map(x=>x.id));$('#asp').value=S.aspect;setAspect();syncBinds();renderThemes();renderShots();lists();inv()}
-$('#savep').onclick=()=>saveBlob(new Blob([JSON.stringify(projJ(),null,1)],{type:'application/json'}),'project.json');
+const PROJECTS_KEY='icsProjectLibraryV1';let activeProjectId=null,homeWasOpen=false;
+function projectLibrary(){try{const x=JSON.parse(localStorage.getItem(PROJECTS_KEY)||'[]');return Array.isArray(x)?x:[]}catch{return[]}}
+function projectStore(){const name=($('#projectName')?.value||'').trim()||S.meta?.title||S.file?.name?.replace(/\.[^.]+$/,'')||'Untitled project';const lib=projectLibrary();const id=activeProjectId||('p_'+Date.now());const rec={id,name,updated:Date.now(),sourcePath:S.path||null,sourceName:S.file?.name||S.meta?.title||'',assets:assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration})),state:projJ()};const ix=lib.findIndex(x=>x.id===id);if(ix>=0)lib[ix]=rec;else lib.unshift(rec);try{localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib));activeProjectId=id;$('#projectName').value=name;renderProjectCards();toast('Saved project: '+name)}catch(e){toast('Project could not be saved: browser storage is full. Export a project JSON backup.')}return rec}
+function renderProjectCards(){const root=$('#projectCards');if(!root)return;const lib=projectLibrary();root.innerHTML=lib.map(p=>`<div class="row" style="min-height:150px"><b>${esc(p.name||'Untitled project')}</b><div class="hint">${p.state?.subs?.length||0} subtitles · Updated ${new Date(p.updated||Date.now()).toLocaleString()}${p.sourceName?' · '+esc(p.sourceName):''}</div><div class="bar"><button data-proj-open="${p.id}" class="pri">Open project</button><button data-proj-save="${p.id}">Update from current</button><button data-proj-del="${p.id}">Delete</button></div></div>`).join('')||'<div class="hint">No saved projects yet. Start editing, then choose Save current project.</div>'}
+function showProjectHome(){homeWasOpen=true;$('#projectHome').style.display='block';renderProjectCards()}
+function hideProjectHome(){homeWasOpen=false;$('#projectHome').style.display='none'}
+$('#projects').onclick=showProjectHome;$('#homeBack').onclick=hideProjectHome;$('#homeSave').onclick=()=>projectStore();$('#homeNew').onclick=()=>{if(S.subs.length||S.file||S.texts.length){if(!confirm('Start a new project? Save the current project first if you want to keep it.'))return}activeProjectId=null;S.subs=[];S.texts=[];S.mediaOverlays=[];S.meta={};$('#projectName').value='';lists();inv();hideProjectHome();toast('New project ready — add media in Assets')};
+$('#projectCards').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const lib=projectLibrary(),p=lib.find(x=>x.id===b.dataset.projOpen||x.id===b.dataset.projSave||x.id===b.dataset.projDel);if(!p)return;if(b.dataset.projDel){if(confirm('Delete saved project “'+p.name+'”?')){localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib.filter(x=>x.id!==p.id)));renderProjectCards()}return}if(b.dataset.projSave){activeProjectId=p.id;$('#projectName').value=p.name;projectStore();return}if(b.dataset.projOpen){activeProjectId=p.id;$('#projectName').value=p.name;projLoad(p.state||{});assetLibrary=Array.isArray(p.assets)?p.assets.map(a=>({...a,file:null,img:null,url:null})):assetLibrary;saveAssets();renderAssets();hideProjectHome();if(p.sourcePath){toast('Project restored. Re-open/relink source media if it is not already loaded.')}else toast('Project restored');}});
+$('#dualOn').checked=!!S.du.on;$('#dualStyle').value=S.du.style||'classic';$('#dualSize').value=S.du.size||58;$('#dualTransSize').value=S.du.transSize||32;$('#dualSourceY').value=S.du.sourceY??44;$('#dualTransY').value=S.du.transY??56;$('#dualSourceX').value=S.du.sourceX??50;$('#dualTransX').value=S.du.transX??50;
+$('#dualOn').onchange=e=>{S.du.on=e.target.checked;inv();snap()};$('#dualStyle').onchange=e=>{S.du.style=e.target.value;inv();snap()};$('#dualSize').oninput=e=>{S.du.size=+e.target.value;inv()};$('#dualTransSize').oninput=e=>{S.du.transSize=+e.target.value;inv()};
+// Keep a rolling recovery snapshot for active named projects as the user edits.
+setInterval(()=>{if(activeProjectId){try{const lib=projectLibrary(),i=lib.findIndex(p=>p.id===activeProjectId);if(i>=0){lib[i].state=projJ();lib[i].assets=assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration}));lib[i].updated=Date.now();localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib))}}catch{}}},10000);
+$('#savep').onclick=()=>{projectStore();saveBlob(new Blob([JSON.stringify({...projJ(),projectName:$('#projectName').value,sourcePath:S.path,assets:assetLibrary.map(({id,name,type,path,duration})=>({id,name,type,path,duration}))},null,1)],{type:'application/json'}),'project.json')};
 $('#fp').onchange=async e=>{try{projLoad(JSON.parse(await e.target.files[0].text()));toast('Project loaded')}catch(err){toast('Invalid project file')}e.target.value=''};
 /* ---------- export: stream desktop render chunks to disk, then FFmpeg muxes audio ---------- */
-TA?.event?.listen('export-log',e=>{$('#prog').textContent=String(e.payload).slice(0,90)});
+function setExportProgress(pct,label){const n=Math.max(0,Math.min(100,Math.round(Number(pct)||0))),bar=$('#exportProgress'),fill=bar?.querySelector('i'),txt=$('#exportProgressText');if(fill)fill.style.width=n+'%';if(bar)bar.setAttribute('aria-valuenow',String(n));if(txt&&label)txt.textContent=label;const mini=$('#prog');if(mini)mini.textContent=(label||'Exporting')+' '+n+'%'}
+TA?.event?.listen('export-log',e=>{const msg=String(e.payload||'');const m=/(?:Encoding video \([^)]*\)…\s*)(\d+)%/.exec(msg);if(m){const ff=Number(m[2]);setExportProgress(45+ff*.54,'FFmpeg encoding · '+ff+'%');return}const m2=/(\d+)%/.exec(msg);if(m2&&/100%/.test(msg)){setExportProgress(100,msg);return}if($('#exportProgressText'))$('#exportProgressText').textContent=msg.slice(0,140);$('#prog').textContent=msg.slice(0,90)});
 async function exportAll(){
  if(!V.src||exporting)return toast('Open a video first');
  const T=window.__TAURI__,desk=!!(T?.core&&S.file),oldRate=V.playbackRate;
@@ -744,7 +815,7 @@ async function exportAll(){
  let successful=false;
  try{
   if(!(Number.isFinite(S.trimS)&&Number.isFinite(S.trimE)&&S.trimE>S.trimS))throw new Error('Set a valid clip start and end first.');
-  exporting=true;$('#exp').disabled=$('#exp2').disabled=true;$('#exst').textContent='';$('#prog').textContent='Preparing render…';
+  exporting=true;$('#exp').disabled=$('#exp2').disabled=true;$('#exst').textContent='';setExportProgress(0,'Preparing render…');
   sc=1;setAspect();S.sample=0;await sleep(80);
   if(desk){const dir=await projDir();vtmp=await T.path.join(dir,'render_video.webm')}
   cs=C.captureStream(30);
@@ -774,7 +845,7 @@ async function exportAll(){
    rec.addEventListener('stop',()=>{if(!finished){finished=true;clearTimeout(timer);resolve()}},{once:true});
    try{rec.stop()}catch(err){if(!finished){finished=true;clearTimeout(timer);reject(err)}}
   });
-  rec.start(1000);$('#prog').textContent='Rendering 0%';
+  rec.start(1000);setExportProgress(0,'Rendering video · 0%');
   await V.play();
   const speed=Math.max(.25,Math.abs(V.playbackRate)||1),expectedMs=((S.trimE-S.trimS)/speed)*1000;
   await new Promise((resolve,reject)=>{
@@ -784,7 +855,7 @@ async function exportAll(){
    const onEnded=()=>finish();
    const iv=setInterval(()=>{
     const pct=Math.min(100,Math.max(0,Math.round((V.currentTime-S.trimS)/(S.trimE-S.trimS)*100)));
-    $('#prog').textContent='Rendering '+pct+'%';
+    setExportProgress(pct*0.35,'Rendering video · '+pct+'%');
     if(V.currentTime>=S.trimE-.015||V.ended)finish();
    },120);
    const timeout=setTimeout(()=>finish(new Error('Video playback did not reach the selected end time. Check the trim range and try again.')),Math.max(30000,expectedMs+30000));
@@ -800,22 +871,22 @@ async function exportAll(){
    await saveBlob(blob,'clip.'+(mt.includes('mp4')?'mp4':'webm'));
    $('#exst').textContent='Rendered clip saved.';toast('Export finished');
   }else{
-   $('#prog').textContent='Preparing audio and encoding MP4…';
+   setExportProgress(36,'Preparing audio for FFmpeg encoding…');
    const input=await sourcePath(),hex=S.mode==='simple'?'SIMPLE':themeAt(S.trimS).accent.replace('#','').toUpperCase(),out=await T.path.join(await projDir(),`clip_${hex}.mp4`);
-   await T.core.invoke('finalize_export',{video:vtmp,source:input,start:S.trimS,dur:S.trimE-S.trimS,speed:+$('#spd').value||1,enhance:!!S.aud.enh,pre:S.aud.pre||'',vocals:!!S.aud.vocals,demucs:S.aud.model,crf:S.ex.crf,out});
+   await T.core.invoke('finalize_export',{video:vtmp,source:input,audioSource:S.aud.track||'',start:S.trimS,dur:S.trimE-S.trimS,speed:+$('#spd').value||1,enhance:!!S.aud.enh,pre:S.aud.pre||'',vocals:!!S.aud.vocals,demucs:S.aud.model,crf:S.ex.crf,out});
    if(S.ex.arch){
     const dir=await projDir();
     await writeBytes(await T.path.join(dir,'subtitles.srt'),new Blob([S.subs.map((s,i)=>`${i+1}\n${fts(s.s)} --> ${fts(s.e)}\n${s.t}\n`).join('\n')]));
     if(S.subs.some(s=>s.orig))await writeBytes(await T.path.join(dir,'subtitles_original.srt'),new Blob([S.subs.map((s,i)=>`${i+1}\n${fts(s.s)} --> ${fts(s.e)}\n${s.orig||s.t}\n`).join('\n')]));
     await writeBytes(await T.path.join(dir,'project.json'),new Blob([JSON.stringify(projJ(),null,1)]));
-    $('#prog').textContent='Creating thumbnail…';await writeBytes(await T.path.join(dir,'clip_THUMBNAIL.png'),await makeThumb());
+    setExportProgress(98,'Creating thumbnail…');await writeBytes(await T.path.join(dir,'clip_THUMBNAIL.png'),await makeThumb());
     fillCaption();await writeBytes(await T.path.join(dir,'clip_CAPTION.txt'),new Blob([buildCaption()]));
    }
-   $('#exst').textContent='Saved: '+out;toast('Export finished: '+out);T.core.invoke('reveal',{path:out}).catch(()=>{});
+   setExportProgress(100,'Export complete · 100%');$('#exst').textContent='Saved: '+out;toast('Export finished: '+out);T.core.invoke('reveal',{path:out}).catch(()=>{});
   }
   successful=true;
  }catch(e){
-  const msg=String(e?.message||e);toast('Export failed: '+msg);$('#exst').textContent='❌ '+msg;$('#prog').textContent='Export failed';
+  const msg=String(e?.message||e);toast('Export failed: '+msg);$('#exst').textContent='❌ '+msg;$('#prog').textContent='Export failed';setExportProgress(0,'Export failed');
  }finally{
   if(rec&&rec.state!=='inactive'){
    try{await new Promise(resolve=>{let done=false;const finish=()=>{if(done)return;done=true;clearTimeout(timer);resolve()};rec.addEventListener('stop',finish,{once:true});const timer=setTimeout(finish,5000);try{rec.stop()}catch{finish()}})}catch{}
@@ -824,7 +895,7 @@ async function exportAll(){
   if(cs)try{cs.getTracks().forEach(t=>t.stop())}catch{}
   if(V&&!V.paused)V.pause();V.playbackRate=oldRate;S.sample=0;exporting=false;sc=PQ;setAspect();
   $('#exp').disabled=$('#exp2').disabled=false;
-  if(successful)$('#prog').textContent='';
+  if(successful){$('#prog').textContent='';setExportProgress(100,'Export complete · 100%')}
  }
 }
 $('#exp').onclick=exportAll;$('#exp2').onclick=exportAll;
@@ -872,12 +943,13 @@ function segsToSubs(segs,maxlen){const out=[];
   else out.push({id:uid++,s:g.s,e:g.e,t:g.t,words:ws.map(w=>({w:w.w.trim(),s:w.s,e:w.e}))})}
  return out}
 TA?.event?.listen('whisper-log',e=>{const s=String(e.payload);if(s.startsWith('MODEL '))$('#asrst').textContent='Using '+s.slice(6)});
+function mergeSentenceSubtitles(items){const out=[],ends=/[.!?؟۔…:;؛।]$/;for(const raw of (items||[])){const cur={...raw,t:String(raw.t||'').trim()};if(!cur.t)continue;if(!out.length){out.push(cur);continue}const prev=out[out.length-1],gap=Math.max(0,(+cur.s||0)-(+prev.e||0)),words=(prev.t+' '+cur.t).trim().split(/\s+/);if(ends.test(prev.t)||gap>=.85||words.length>42||(+cur.e-(+prev.s))>9){out.push(cur)}else{prev.t=(prev.t+' '+cur.t).replace(/\s+/g,' ').trim();prev.e=cur.e;if(prev.words&&cur.words)prev.words.push(...cur.words)}}return out}
 $('#asrgo').onclick=async()=>{
- if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file)return toast('Open a video first');
+ if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file&&!S.aud.track)return toast('Add an audio asset or open a video first');
  const b=$('#asrgo');b.disabled=true;$('#asrbar i').style.width='0';
- try{$('#asrst').textContent='Preparing…';const input=await sourcePath(),model=$('#asrmodel').value,maxlen=+$('#asrml').value||0;
+ try{$('#asrst').textContent='Preparing…';const input=await transcriptionPath(),model=$('#asrmodel').value,maxlen=+$('#asrml').value||0;
   $('#asrst').textContent='Extracting audio…';
-  const out=JSON.parse(await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,engine:$('#asreng').value}));
+  const out=JSON.parse(await TA.core.invoke('transcribe',{input,lang:$('#asrlang').value,maxlen,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,engine:$('#asreng').value,durationHint:await transcriptionDuration()}));
   S.subs=(out.segments?segsToSubs(out.segments,maxlen):parseSRT(out.srt)).sort((x,y)=>x.s-y.s);lists();$('#asrbar i').style.width='100%';
   $('#asrst').textContent=S.subs.length+' subtitles created'+(out.segments?' (word timings kept — turn on Word highlight in Default style)':'')+'. Edit anything below, or change settings and generate again.';snap()}
  catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
@@ -912,12 +984,13 @@ function asrNote(){const lang=$('#asrlang').value,e=asrRoute();let m='';
  $('#asrnote').textContent=m+(e==='cohere'?' Timing comes from voice-activity detection, so karaoke timing is estimated.':'')}
 $('#asrlang').onchange=asrNote;$('#asreng').onchange=asrNote;asrNote();
 function synthWords(g){const tk=(g.t||'').split(/\s+/).filter(Boolean),tot=tk.reduce((n,w)=>n+w.length+1,0)||1,d=g.e-g.s;let c=g.s;return tk.map((w,i)=>{const e=c+d*(w.length+1)/tot,o={w:(i?' ':'')+w,s:c,e};c=e;return o})}
+function mergeSentenceSubtitles(items){const out=[],ends=/[.!?؟۔…:;؛।]$/;for(const raw of (items||[])){const cur={...raw,t:String(raw.t||'').trim()};if(!cur.t)continue;if(!out.length){out.push(cur);continue}const prev=out[out.length-1],gap=Math.max(0,(+cur.s||0)-(+prev.e||0)),words=(prev.t+' '+cur.t).trim().split(/\s+/);if(ends.test(prev.t)||gap>=.85||words.length>42||(+cur.e-(+prev.s))>9){out.push(cur)}else{prev.t=(prev.t+' '+cur.t).replace(/\s+/g,' ').trim();prev.e=cur.e;if(prev.words&&cur.words)prev.words.push(...cur.words)}}return out}
 $('#asrgo').onclick=async()=>{
- if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file)return toast('Open a video first');
+ if(!TA?.core)return toast('Auto subtitles need the desktop app');if(!S.file&&!S.aud.track)return toast('Add an audio asset or open a video first');
  const b=$('#asrgo');b.disabled=true;$('#asrbar i').style.width='0';
- try{$('#asrst').textContent='Preparing…';const input=await sourcePath(),lang=$('#asrlang').value,eng=asrRoute(),model=$('#asrcustom').value.trim()||$('#asrmodel').value,maxlen=+$('#asrml').value||0;
+ try{$('#asrst').textContent='Preparing…';const input=await transcriptionPath(),lang=$('#asrlang').value,eng=asrRoute(),model=$('#asrcustom').value.trim()||$('#asrmodel').value,maxlen=+$('#asrml').value||0;
   $('#asrst').textContent='Extracting audio…';
-  const out=JSON.parse(await TA.core.invoke('transcribe',{input,lang,maxlen,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,engine:eng}));
+  const out=JSON.parse(await TA.core.invoke('transcribe',{input,lang,maxlen,translate:$('#asrtr').checked,model,prompt:$('#asrhint').value.trim(),ctx:$('#asrctx').checked,det:$('#asrdet').checked,engine:eng,durationHint:await transcriptionDuration()}));
   S.subs=(out.segments?segsToSubs(out.segments,maxlen||(out.engine==='cohere'?42:0)):parseSRT(out.srt)).sort((x,y)=>x.s-y.s);lists();$('#asrbar i').style.width='100%';
   $('#asrst').textContent=S.subs.length+' subtitles created'+(out.engine==='cohere'?' with Cohere Transcribe':'')+'. Edit anything below, or change settings and generate again.';snap()}
  catch(e){$('#asrst').textContent='❌ '+e}b.disabled=false};
