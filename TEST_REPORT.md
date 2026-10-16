@@ -1,10 +1,9 @@
-# v1.1.2 validation report
+# v1.1.4 validation report
 
-- `python -m py_compile src-tauri/cohere_run.py src-tauri/whisper_run.py src-tauri/env_check.py`: PASS
-- JavaScript syntax validation: PASS (Node available)
-- ZIP integrity: PASS
-- Windows/Tauri build: NOT RUN (Cargo toolchain unavailable in this environment)
-- Real Cohere transcription benchmark: NOT RUN (model weights and target RTX 3050 runtime unavailable)
-- Accuracy regression comparison: NOT RUN; requires a fixed reference audio/transcript on the user's machine.
-
-The update changes the inference path to the model's documented native `transcribe()` API and adds measurement output, but performance and accuracy must be measured on target hardware before claiming a quantified improvement.
+- JavaScript syntax validation with Node.js: PASS
+- ZIP integrity: checked after packaging
+- Preserves existing project files and UI; only adds poem/qasida recovery controls, workflow code, and version/notes updates
+- Windows/Tauri build: NOT RUN in this environment
+- Online source retrieval: NOT live-tested; depends on network, AllOrigins proxy, and source-site access
+- Arabic/Urdu line alignment accuracy: NOT tested against reference audio; manual review is required
+- AI fallback: code path uses the existing configured translation provider; provider credentials/network were not live-tested
