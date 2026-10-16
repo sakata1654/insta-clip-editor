@@ -648,6 +648,28 @@ async fn make_background_video(image: String, audio: String, duration: f64, widt
     }).await.map_err(|e| e.to_string())?
 }
 
+
+// Loop a selected video until the external audio duration, producing a normal MP4 source
+// so the preview, timeline and existing export pipeline all use the same exact duration.
+#[tauri::command]
+async fn make_looped_background_video(video: String, duration: f64, width: u32, height: u32, out: String) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if !Path::new(&video).is_file() { return Err(format!("Background video not found: {video}")); }
+        if !duration.is_finite() || duration <= 0.0 || duration > 43_200.0 { return Err("Audio duration is missing or outside the supported range (0–12 hours).".into()); }
+        let w = ((width.clamp(320, 2160)) / 2) * 2;
+        let h = ((height.clamp(320, 3840)) / 2) * 2;
+        let vf = format!("scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30");
+        let mut c = ffmpeg()?;
+        c.args(["-y", "-hide_banner", "-loglevel", "error", "-stream_loop", "-1", "-i", &video, "-t", &duration.to_string(), "-an", "-vf", &vf, "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-movflags", "+faststart"]).arg(&out);
+        let output = c.output().map_err(|e| format!("FFmpeg could not loop the background video: {e}"))?;
+        if !output.status.success() {
+            let detail = String::from_utf8_lossy(&output.stderr).lines().rev().take(8).collect::<Vec<_>>().into_iter().rev().collect::<Vec<_>>().join("\n");
+            return Err(format!("Could not loop the background video. {detail}"));
+        }
+        Ok(out)
+    }).await.map_err(|e| e.to_string())?
+}
+
 // ---------------------------------------------------------------- transcription (faster-whisper, Cohere Transcribe, or whisper.cpp)
 #[tauri::command]
 async fn transcribe(app: AppHandle, input: String, lang: String, maxlen: u32, translate: bool, model: String, prompt: String, ctx: bool, det: bool, engine: String, duration_hint: Option<f64>) -> Result<String, String> {
@@ -812,7 +834,7 @@ fn main() {
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
             set_overrides, env_check, install_tool, read_file, write_file, append_file, reveal,
-            ytdlp_version, ytdlp_update, ytdlp_download, transcribe, media_duration, make_background_video, finalize_export
+            ytdlp_version, ytdlp_update, ytdlp_download, transcribe, media_duration, make_background_video, make_looped_background_video, finalize_export
         ])
         .run(tauri::generate_context!())
         .expect("error while running app");

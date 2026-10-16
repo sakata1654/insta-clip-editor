@@ -1,16 +1,10 @@
-# v1.1.0 test report
+# v1.1.2 validation report
 
-## Passed in the available environment
-- `node --check` on the embedded frontend JavaScript.
-- Python syntax compilation for the three shipped Python helpers.
-- JSON parsing for `package.json`, `src-tauri/tauri.conf.json`, and `src-tauri/capabilities/default.json`.
-- FFmpeg smoke test: a still image plus 2-second audio produced a valid MP4 background clip.
-- FFmpeg smoke test: a short video plus audio encoded to H.264/AAC MP4 at the input dimensions.
-- ZIP integrity test.
+- `python -m py_compile src-tauri/cohere_run.py src-tauri/whisper_run.py src-tauri/env_check.py`: PASS
+- JavaScript syntax validation: PASS (Node available)
+- ZIP integrity: PASS
+- Windows/Tauri build: NOT RUN (Cargo toolchain unavailable in this environment)
+- Real Cohere transcription benchmark: NOT RUN (model weights and target RTX 3050 runtime unavailable)
+- Accuracy regression comparison: NOT RUN; requires a fixed reference audio/transcript on the user's machine.
 
-## Not run
-- Rust/Tauri compilation: Cargo/Rust toolchain is not installed in this environment.
-- Windows installer execution.
-- End-to-end GUI automation for project switching, media relinking, audio/video synchronization, subtitle drag handles, AI API calls, and 1080p export quality.
-
-Passing these checks is not equivalent to a complete Windows acceptance test.
+The update changes the inference path to the model's documented native `transcribe()` API and adds measurement output, but performance and accuracy must be measured on target hardware before claiming a quantified improvement.

@@ -1,28 +1,16 @@
-# Insta Clip Studio v1.1.0 — Stabilization Release
+# Insta Clip Studio v1.1.2 — Cohere transcription optimization
 
-This release consolidates fixes against the v1.0.9 source project.
+## Changes
+- Replaced the old per-VAD-segment `model.generate()` hot loop with Cohere Transcribe's native `model.transcribe()` API in grouped calls, retaining VAD-derived start/end timestamps for subtitle segments.
+- Kept conservative inference batch sizes for low-VRAM GPUs (batch 1 below 6 GB VRAM; 2 for 6–10 GB; 4 above 10 GB) to reduce out-of-memory risk.
+- Added `model.eval()` and `torch.inference_mode()` to the compatibility fallback.
+- Reduced fallback generation cap from 400 to 256 new tokens to avoid excessive decode work on unusual long generations while preserving normal speech transcripts.
+- Added per-stage and per-group timing diagnostics, segment progress, and a resampling guard for inputs not already at 16 kHz.
+- A failed optimized group retries only that group via the compatible generation path, rather than repeating previously completed segments.
+- Kept VAD-based timestamp reconstruction, English/Arabic model selection, current UI event protocol, and existing project features.
 
-## Included
-- Keeps the Assets workflow for image, video, and audio/MP3 imports.
-- Restores saved project source media and external audio paths when available, rehydrates overlay media, and reloads the selected image background.
-- A new project now clears prior media, overlays, audio, subtitle data, and editing state rather than leaving stale media behind.
-- Project autosave now refreshes source-media metadata as well as editor state and asset references.
-- Project JSON import attempts to restore its source video, assets, and active external audio.
-- Dual subtitle source and translation have separate X/Y controls and independent preview drag targeting. The controls are saved with project state.
-- Export progress updates are mirrored to a render cover so the preview does not visibly play during export; project switching is blocked during export to avoid corrupting the live render state.
-- Version numbers are synchronized to 1.1.0.
-
-## Important limitation
-The export compositor still uses the existing canvas/MediaRecorder capture to preserve the app's custom effects and subtitle styles, then uses FFmpeg for final audio processing and MP4 encoding. This release does **not** yet replace that capture pipeline with a fully detached FFmpeg-only renderer, and it does not permit switching projects during an active export. The render cover hides preview playback, but it is not a substitute for an isolated background-rendering architecture.
-
-## Validation performed
-- Inline JavaScript syntax check with Node.js.
-- Python syntax checks for the transcription and environment scripts.
-- JSON parsing for package, Tauri configuration, and capabilities.
-- ZIP integrity check.
-
-## Not yet verified
-A Windows/Tauri build and full end-to-end tests for video playback, asset relinking, subtitle dragging, transcription, and final export must run on Windows. Cargo was unavailable in the patching environment, so this is a validated source package, not a verified Windows installer.
-- Removed the redundant legacy transcription handlers so one engine-routed transcription path controls the Generate subtitles button.
-- Sentence-grouping is applied once to generated subtitle segments, while preserving word timings where possible.
-- Renamed the obsolete hidden translator status node so progress updates target the active Translate tab.
+## Validation
+- Python syntax compilation passed for Cohere, Whisper, and environment-check scripts.
+- JavaScript syntax check passed.
+- ZIP integrity check passed.
+- This environment does not have the user's Windows GPU/model runtime, so no real Cohere inference speed or accuracy benchmark was possible here. The script emits `COHERE_TIMING` and `COHERE_METRICS` lines so the user can measure actual timing on their RTX 3050. Compare a fixed 2-minute sample before and after; do not assume a speedup until measured.
