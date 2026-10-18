@@ -1212,7 +1212,19 @@ envItems=function(){const it=_envItems(),e=S.env;if(!e)return it;const c=e.coher
 renderEnv=function(){const it=envItems().filter(x=>!x.hide),c=(S.env&&S.env.cohere)||{};
  $('#envbody').innerHTML=it.map(x=>`<div class="row" style="display:flex;gap:8px;align-items:center;${x.sub?'margin-left:20px;':''}"><b style="width:20px">${x.ok?'✅':(x.req?'❌':'➖')}</b><div style="flex:1;min-width:0"><div>${esc(x.name)}</div><div class="hint" style="margin:0;word-break:break-all">${esc(x.detail||'')}</div></div>${!x.ok&&x.inst&&(!x.needPy||S.env.python.ok)&&(!x.needRt||(c.runtime&&c.token))?`<button data-inst="${x.inst}">Install</button>`:''}</div>`).join('');
  $('#envdot').style.background=envItems().filter(x=>!x.ok&&x.req).length?'#ff5a36':'#22c55e';asrNote()};
-trRender();
-
-setAspect();syncBinds();lists();renderThemes();renderShots();renderShortcuts();loop();view('ed');snap();envBoot();showProjectHome();
+// Keep a non-critical translation-panel render from blocking core editor startup.
+setTimeout(()=>{try{trRender()}catch(e){console.error('Translation panel initialization failed:',e);try{toast('Translation panel could not initialize: '+(e?.message||e))}catch{}}},0);
+// Initialize core UI in isolated steps: one broken optional panel must not leave the whole app inert.
+for (const [label, init] of [
+ ['aspect',()=>setAspect()],['bindings',()=>syncBinds()],['lists',()=>lists()],
+ ['themes',()=>renderThemes()],['shots',()=>renderShots()],['shortcuts',()=>renderShortcuts()],
+ ['render loop',()=>loop()],['editor view',()=>view('ed')],['snapshot',()=>snap()],
+ ['environment',()=>envBoot()],['project home',()=>showProjectHome()]
+]) { try { init(); } catch(e) { console.error('Startup step failed ('+label+'):',e); try { toast('Startup warning ('+label+'): '+(e?.message||e)); } catch {} } }
+// Emergency navigation bindings ensure the main controls remain usable if an optional feature fails.
+try { $('#projects').onclick=()=>{ $('#projectHome').style.display='block'; try{renderProjectCards()}catch(e){console.error(e)} }; $('#homeBack').onclick=()=>$('#projectHome').style.display='none'; $('#open').onclick=()=>$('#fv').click(); $('#loadp').onclick=()=>$('#fp').click(); $('#savep').onclick=()=>{try{projectStore()}catch(e){toast('Save failed: '+(e?.message||e))}}; } catch(e) { console.error('Emergency controls could not be bound:',e); }
+window.addEventListener('error',e=>{console.error('Uncaught app error:',e.error||e.message);try{toast('App error: '+(e.message||'unknown error'))}catch{}});
+// Enforce the requested project-first startup after every editor initializer has run.
+// The homepage must be the first screen on every fresh app launch; opening a project is explicit.
+setTimeout(()=>{try{const home=$('#projectHome');if(home){home.style.display='block';homeWasOpen=true;try{renderProjectCards()}catch(e){console.error('Project list could not render:',e);const root=$('#projectCards');if(root)root.innerHTML='<div class="hint">Projects could not be loaded. You can still create a new project.</div>';} } }catch(e){console.error('Project homepage startup failed:',e)}},0);
 </script></body></html>
