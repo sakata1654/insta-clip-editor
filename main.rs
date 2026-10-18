@@ -491,6 +491,20 @@ fn append_file(request: Request<'_>) -> Result<(), String> {
     f.write_all(data).map_err(|e| format!("{p}: {e}"))
 }
 
+
+#[tauri::command]
+fn copy_file(source: String, destination: String) -> Result<(), String> {
+    let src = Path::new(&source);
+    if !src.is_file() { return Err(format!("Source media does not exist: {source}")); }
+    if let Some(parent) = Path::new(&destination).parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
+    if src == Path::new(&destination) { return Ok(()); }
+    std::fs::copy(&source, &destination).map(|_| ()).map_err(|e| format!("Could not copy media to {destination}: {e}"))
+}
+#[tauri::command]
+fn ensure_dir(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| format!("Could not create directory {path}: {e}"))
+}
+
 #[tauri::command]
 fn reveal(path: String) -> Result<(), String> {
     #[cfg(windows)]
@@ -833,7 +847,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_http::init())
         .invoke_handler(tauri::generate_handler![
-            set_overrides, env_check, install_tool, read_file, write_file, append_file, reveal,
+            set_overrides, env_check, install_tool, read_file, write_file, append_file, copy_file, ensure_dir, reveal,
             ytdlp_version, ytdlp_update, ytdlp_download, transcribe, media_duration, make_background_video, make_looped_background_video, finalize_export
         ])
         .run(tauri::generate_context!())

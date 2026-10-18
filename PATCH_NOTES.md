@@ -14,3 +14,10 @@
 - JavaScript syntax check passed.
 - ZIP integrity check passed.
 - This environment does not have the user's Windows GPU/model runtime, so no real Cohere inference speed or accuracy benchmark was possible here. The script emits `COHERE_TIMING` and `COHERE_METRICS` lines so the user can measure actual timing on their RTX 3050. Compare a fixed 2-minute sample before and after; do not assume a speedup until measured.
+
+
+## v1.2.3 — Timeline zoom and range export
+- Added horizontal timeline zoom (1×–8×), zoom in/out and Fit controls, with horizontal scrolling for precise subtitle and text block editing.
+- Added Export range controls for timestamp-based start/end, including buttons to capture the current playhead as either boundary.
+- Export range applies to the existing trim/export pipeline; timeline trim handles and transport trim buttons stay synchronized with the export range fields.
+- Validates timestamp input and rejects end times beyond the loaded source duration.
