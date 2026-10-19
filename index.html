@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Insta Clip Studio v1.2.0</title>
+<title>Insta Clip Studio v1.3.0</title>
 <style>
 :root{--bg:#0e1014;--p:#161920;--p2:#1e222b;--b:#2a2f3a;--t:#e8eaf0;--m:#8b93a5;--a:#ff3d81}
 *{box-sizing:border-box}
@@ -81,11 +81,17 @@ button,select,input{transition:border-color .15s,background .15s}.pane{animation
 .hint{color:var(--m);font-size:12px;margin:6px 0 10px}
 #asrst{white-space:pre-wrap;overflow-wrap:anywhere;max-height:190px;overflow:auto}
 .dual-paper{font-family:Georgia,serif}
-#projectHome{z-index:9999;pointer-events:auto}
-</style></head>
+#projectHome{position:fixed;inset:0;z-index:100;background:var(--bg);overflow:auto;pointer-events:auto}#projectHome button,#projectHome input{cursor:pointer}
+</style><script>
+/* v1.2.8 boot guard: capture fatal startup errors before the editor script runs. */
+(function(){function showBootError(message,source,line,col){try{let box=document.getElementById("icsBootError");if(!box){box=document.createElement("div");box.id="icsBootError";box.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:2147483647;background:#32151d;border:1px solid #ff3d81;color:#fff;padding:12px;border-radius:8px;font:12px/1.5 system-ui;white-space:pre-wrap;max-height:35vh;overflow:auto;pointer-events:auto";document.body.appendChild(box)}box.textContent="Startup error captured (v1.2.8): "+message+(source?"\n"+source+":"+line+":"+col:"")+"\nThe app is attempting to keep the Projects controls available."}catch(_){}}window.addEventListener("error",e=>showBootError(e.message||"Unknown JavaScript error",e.filename,e.lineno,e.colno));window.addEventListener("unhandledrejection",e=>showBootError("Unhandled async error: "+(e.reason&&e.reason.message?e.reason.message:String(e.reason))))})();
+</script>
+</head>
 <body>
+<div id="projectHome" style="display:block;position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;padding:28px"><div style="max-width:1100px;margin:auto"><div class="rt" style="justify-content:space-between"><div><h1 style="margin:0">Insta Clip Studio <span style="font-size:12px;color:var(--m)">v1.3.0 · PROJECT HOME</span></h1><div class="hint">Your projects, saved work and recent sessions</div></div><button id="homeNew" class="pri">＋ New project</button></div><div class="row"><div class="rt"><input id="projectName" placeholder="Project name (e.g. Qasida — Burdah)" style="flex:1"><button id="homeSave" class="pri">Save current project</button><button id="homeBack">Back to editor</button></div></div><div class="row"><b>Recent projects</b><div class="hint">Each project keeps its own edits, subtitles, media references, and autosave recovery snapshot.</div></div><div id="projectCards" class="sg" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px"></div><div class="row"><b>Keyboard shortcuts</b><div class="hint">Click a shortcut field and press the key combination you want. Changes are saved on this device.</div><div id="shortcutSettings" class="sg" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px"></div><div class="bar"><button id="shortcutReset">Reset shortcuts</button></div></div><div class="hint">Projects autosave every 3 seconds. Source video and imported media are copied into each project’s Media folder when saved in the desktop app, so projects are more portable. If a file is missing, use Relink media to reconnect it.</div></div></div>
+
 <div id="app">
-<div id="projectHome" style="display:block;position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto;padding:28px"><div style="max-width:1100px;margin:auto"><div class="rt" style="justify-content:space-between"><div><h1 style="margin:0">Insta Clip Studio <span style="font-size:12px;color:var(--m)">v1.2.7 · PROJECT HOME</span></h1><div class="hint">Your projects, saved work and recent sessions</div></div><button id="homeNew" class="pri">＋ New project</button></div><div class="row"><div class="rt"><input id="projectName" placeholder="Project name (e.g. Qasida — Burdah)" style="flex:1"><button id="homeSave" class="pri">Save current project</button><button id="homeBack">Back to editor</button></div></div><div class="row"><b>Recent projects</b><div class="hint">Each project keeps its own edits, subtitles, media references, and autosave recovery snapshot.</div></div><div id="projectCards" class="sg" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px"></div><div class="row"><b>Keyboard shortcuts</b><div class="hint">Click a shortcut field and press the key combination you want. Changes are saved on this device.</div><div id="shortcutSettings" class="sg" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px"></div><div class="bar"><button id="shortcutReset">Reset shortcuts</button></div></div><div class="hint">Projects autosave every 3 seconds. Source video and imported media are copied into each project’s Media folder when saved in the desktop app, so projects are more portable. If a file is missing, use Relink media to reconnect it.</div></div></div>
+
 <header><b>🎬 Insta Clip Studio</b><nav id="nav"><button data-v="dl">⬇ Download</button><button data-v="ed" class="on">✂ Editor</button><button data-v="su">💬 Subtitles</button><button data-v="tr">🌐 Translate</button><button data-v="ai">✨ AI Clips</button><button data-v="ex">📤 Export</button><button data-v="set">⚙ Setup <i id="envdot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#8b93a5"></i></button></nav>
 <button id="projects" title="Project home">⌂ Projects</button><button id="recover" style="display:none" title="Restore the autosaved session">↺ Recover</button><button id="open">Open video</button><button id="loadp">Load project</button><button id="savep">Save project</button><button id="exp" class="pri">Export</button></header>
 
@@ -814,14 +820,14 @@ async function bundleProjectMedia(id){if(!TA?.core||!TA?.path)return;const lib=p
 function renderProjectCards(){const root=$('#projectCards');if(!root)return;const lib=projectLibrary();root.innerHTML=lib.map(p=>`<div class="row" style="min-height:150px"><b>${esc(p.name||'Untitled project')}</b><div class="hint">${p.state?.subs?.length||0} subtitles · Updated ${new Date(p.updated||Date.now()).toLocaleString()}${p.sourceName?' · '+esc(p.sourceName):''}</div><div class="bar"><button data-proj-open="${p.id}" class="pri">Open project</button><button data-proj-save="${p.id}">Update from current</button><button data-proj-del="${p.id}">Delete</button></div></div>`).join('')||'<div class="hint">No saved projects yet. Start editing, then choose Save current project.</div>'}
 function showProjectHome(){if(exporting){toast('Wait for export to finish before switching projects.');return}homeWasOpen=true;$('#projectHome').style.display='block';renderProjectCards()}
 function hideProjectHome(){homeWasOpen=false;$('#projectHome').style.display='none'}
-$('#projects').onclick=showProjectHome;$('#homeBack').onclick=hideProjectHome;$('#homeSave').onclick=()=>projectStore();
+// Homepage button handlers are owned only by the final project-home controller.
 function resetProjectState(){
  try{V.pause();V.removeAttribute('src');V.load();A.pause();A.removeAttribute('src');A.load();if(videoObjectUrl)URL.revokeObjectURL(videoObjectUrl);if(activeAudioUrl)URL.revokeObjectURL(activeAudioUrl)}catch{}
  for(const rec of mediaNodes.values()){try{if(rec.el?.tagName==='VIDEO'){rec.el.pause();rec.el.removeAttribute('src');rec.el.load()}if(rec.url)URL.revokeObjectURL(rec.url)}catch{}}mediaNodes.clear();
  assetLibrary=[];saveAssets();S.mode='studio';S.fr={...FR0};S.fg={mode:'video',kb:1,kbz:10};S.gr={...GR0};S.spk={...SPK0};S.wm={...WM0};S.hd={...HD0};S.du={...DU0,transSize:32,style:'classic'};S.ex={...EX0};S.aud={...AUD0};S.grain=6;S.themes=[];S.theme=0;S.shift=0;S.cam='auto';S.shots=[{t:0,px:0,py:0,zoom:100}];S.shotIdx=-1;S.card={...CARD0};S.dm='video';S.guides=0;S.hov=0;S.sample=0;S.path=null;S.file=null;S.meta={};S.subs=[];S.texts=[];S.mediaOverlays=[];S.sel=null;S.aspect='9:16';S.trimS=0;S.trimE=0;S.vol=100;S.st={...ST0};S.fx={...FX0};dur=0;audioDuration=0;fgImg=null;ovlImg=null;ovlC=null;activeProjectId=null;S.dir=null;S.aud.track='';S.aud.trackName='';try{localStorage.removeItem('icsAudioTrack');localStorage.removeItem('icsAudioName')}catch{}
  $('#projectName').value='';$('#asp').value=S.aspect;$('#tm').textContent='0:00.0 / 0:00.0';$('#assetStatus').textContent='';$('#asrst').textContent='';syncBinds();renderAssets();renderThemes();renderShots();lists();tl();setAspect();inv();
 }
-$('#homeNew').onclick=async()=>{if(exporting)return toast('Wait for export to finish before starting another project.');if((S.subs.length||S.file||S.texts.length||assetLibrary.length)&&!confirm('Start a completely new project? Save the current project first if you want to keep it.'))return;resetProjectState();$('#projectName').value='Untitled project';activeProjectId='p_'+Date.now();await projectStore({quiet:true});hideProjectHome();toast('New project created. It autosaves every 3 seconds.')};
+// New-project action is owned only by the final project-home controller.
 $('#projectCards').addEventListener('click',async e=>{if(exporting){toast('Wait for export to finish before switching projects.');return}const b=e.target.closest('button');if(!b)return;const lib=projectLibrary(),p=lib.find(x=>x.id===b.dataset.projOpen||x.id===b.dataset.projSave||x.id===b.dataset.projDel);if(!p)return;if(b.dataset.projDel){if(confirm('Delete saved project “'+p.name+'”?')){localStorage.setItem(PROJECTS_KEY,JSON.stringify(lib.filter(x=>x.id!==p.id)));renderProjectCards()}return}if(b.dataset.projSave){activeProjectId=p.id;$('#projectName').value=p.name;projectStore();return}if(b.dataset.projOpen){
   try{resetProjectState();assetLibrary=Array.isArray(p.assets)?p.assets.map(a=>({...a,file:null,img:null,url:null})):[];saveAssets();activeProjectId=p.id;S.dir=null;$('#projectName').value=p.name||'';let mediaWarning='';
    // Restore the source media first so duration/trim values are clamped against real metadata.
@@ -1220,12 +1226,42 @@ for (const [label, init] of [
  ['aspect',()=>setAspect()],['bindings',()=>syncBinds()],['lists',()=>lists()],
  ['themes',()=>renderThemes()],['shots',()=>renderShots()],['shortcuts',()=>renderShortcuts()],
  ['render loop',()=>loop()],['editor view',()=>view('ed')],['snapshot',()=>snap()],
- ['environment',()=>envBoot()],['project home',()=>showProjectHome()]
+ ['environment',()=>envBoot()]
 ]) { try { init(); } catch(e) { console.error('Startup step failed ('+label+'):',e); try { toast('Startup warning ('+label+'): '+(e?.message||e)); } catch {} } }
-// Emergency navigation bindings ensure the main controls remain usable if an optional feature fails.
-try { $('#projects').onclick=()=>{ $('#projectHome').style.display='block'; try{renderProjectCards()}catch(e){console.error(e)} }; $('#homeBack').onclick=()=>$('#projectHome').style.display='none'; $('#open').onclick=()=>$('#fv').click(); $('#loadp').onclick=()=>$('#fp').click(); $('#savep').onclick=()=>{try{projectStore()}catch(e){toast('Save failed: '+(e?.message||e))}}; } catch(e) { console.error('Emergency controls could not be bound:',e); }
 window.addEventListener('error',e=>{console.error('Uncaught app error:',e.error||e.message);try{toast('App error: '+(e.message||'unknown error'))}catch{}});
-// Enforce the requested project-first startup after every editor initializer has run.
-// The homepage must be the first screen on every fresh app launch; opening a project is explicit.
-setTimeout(()=>{try{const home=$('#projectHome');if(home){home.style.display='block';homeWasOpen=true;try{renderProjectCards()}catch(e){console.error('Project list could not render:',e);const root=$('#projectCards');if(root)root.innerHTML='<div class="hint">Projects could not be loaded. You can still create a new project.</div>';} } }catch(e){console.error('Project homepage startup failed:',e)}},0);
-</script></body></html>
+</script><script>
+/* v1.3.0: single authoritative project-home controller. All home actions are wired here. */
+(function(){
+ const el=id=>document.getElementById(id), home=el('projectHome');
+ if(!home)return;
+ const message=(text)=>{let n=el('icsHomeMessage');if(!n){n=document.createElement('div');n.id='icsHomeMessage';n.className='row';n.style.borderColor='#ff3d81';(el('projectCards')||home).prepend(n)}n.textContent=text};
+ const show=()=>{home.style.display='block';home.style.visibility='visible';home.style.pointerEvents='auto';home.setAttribute('aria-hidden','false');try{if(typeof renderProjectCards==='function')renderProjectCards()}catch(e){message('Could not load project list: '+(e?.message||e))}};
+ const hide=()=>{home.style.display='none';home.style.visibility='hidden';home.style.pointerEvents='none';home.setAttribute('aria-hidden','true');};
+ const action=async(which)=>{
+   try{const oldMessage=el('icsHomeMessage');if(oldMessage)oldMessage.remove();
+    if(which==='back'){hide();try{if(typeof view==='function')view('ed')}catch(_){};return}
+    if(which==='save'){
+      if(typeof projectStore!=='function')throw new Error('The editor did not finish initializing. See the startup diagnostic below.');
+      await projectStore();show();return;
+    }
+    if(which==='new'){
+      if(typeof resetProjectState!=='function'||typeof projectStore!=='function')throw new Error('Editor initialization failed before project actions were ready. Please copy the diagnostic message and share it.');
+      if(typeof exporting!=='undefined'&&exporting)throw new Error('Wait for export to finish before creating a project.');
+      if(typeof S!=='undefined'&&(S.subs?.length||S.file||S.texts?.length||assetLibrary?.length)&&!confirm('Start a new project? Save the current project first if you want to keep it.'))return;
+      resetProjectState();el('projectName').value='Untitled project';await projectStore({quiet:true});hide();
+      try{if(typeof toast==='function')toast('New project created.')}catch(_){};return;
+    }
+   }catch(e){message('Action failed: '+(e?.message||String(e)));}
+ };
+ // Use direct button properties, so there is exactly one owner and no capture-phase interception.
+ el('homeNew').onclick=()=>action('new');
+ el('homeSave').onclick=()=>action('save');
+ el('homeBack').onclick=()=>action('back');
+ const projects=el('projects');if(projects)projects.onclick=show;
+ window.addEventListener('error',e=>message('JavaScript error: '+(e.message||'unknown error')+(e.lineno?' (line '+e.lineno+')':'')));
+ window.addEventListener('unhandledrejection',e=>message('Async error: '+(e.reason?.message||String(e.reason))));
+ // Homepage first on launch; wait until DOM exists but don't use a timer race.
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',show,{once:true});else show();
+})();
+</script>
+</body></html>
