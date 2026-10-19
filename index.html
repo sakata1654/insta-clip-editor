@@ -495,9 +495,10 @@ function tlDraw(){
  $('#ruler').innerHTML=h;$('#ruler').style.position='relative';
 }
 let tlq=0;const tl=()=>{if(!tlq)tlq=requestAnimationFrame(()=>{tlq=0;tlDraw()})};
+const lane=$('#lane');
 let timelineZoom=1;function applyTimelineZoom(v){timelineZoom=Math.max(1,Math.min(8,Number(v)||1));$('#tlZoom').value=timelineZoom;$('#tlZoomLabel').textContent=timelineZoom.toFixed(2).replace(/\.?0+$/,'')+'×';lane.style.width=(timelineZoom*100)+'%';lane.style.minWidth='100%';tlDraw()}
 $('#tlZoom').oninput=e=>applyTimelineZoom(e.target.value);$('#tlZoomIn').onclick=()=>applyTimelineZoom(timelineZoom+.5);$('#tlZoomOut').onclick=()=>applyTimelineZoom(timelineZoom-.5);$('#tlZoomFit').onclick=()=>{applyTimelineZoom(1);$('#timelineScroll').scrollLeft=0};applyTimelineZoom(1);
-const lane=$('#lane'),xt=e=>{const r=lane.getBoundingClientRect();return Math.min(dur,Math.max(0,(e.clientX-r.left)/r.width*dur))};
+const xt=e=>{const r=lane.getBoundingClientRect();return Math.min(dur,Math.max(0,(e.clientX-r.left)/r.width*dur))};
 lane.addEventListener('pointerdown',e=>{
  if(!dur)return;const b=e.target.closest('.blk');
  if(!b){drag={k:'seek'};seekTimeline(xt(e));lane.setPointerCapture(e.pointerId);return}
